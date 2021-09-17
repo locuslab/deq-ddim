@@ -25,40 +25,16 @@ def torch2hwcuint8(x, clip=False):
     return x
 
 
-def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
-    def sigmoid(x):
-        return 1 / (np.exp(-x) + 1)
-
-    if beta_schedule == "quad":
-        betas = (
-            np.linspace(
-                beta_start ** 0.5,
-                beta_end ** 0.5,
-                num_diffusion_timesteps,
-                dtype=np.float64,
-            )
-            ** 2
-        )
-    elif beta_schedule == "linear":
-        betas = np.linspace(
-            beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64
-        )
-    elif beta_schedule == "const":
-        betas = beta_end * np.ones(num_diffusion_timesteps, dtype=np.float64)
-    elif beta_schedule == "jsd":  # 1/T, 1/(T-1), 1/(T-2), ..., 1
-        betas = 1.0 / np.linspace(
-            num_diffusion_timesteps, 1, num_diffusion_timesteps, dtype=np.float64
-        )
-    elif beta_schedule == "sigmoid":
-        betas = np.linspace(-6, 6, num_diffusion_timesteps)
-        betas = sigmoid(betas) * (beta_end - beta_start) + beta_start
+def get_beta_schedule(beta_schedule, ratio, beta_start=1, beta_end=0, num_diffusion_timesteps=1000):
+    if beta_schedule == "geometric":
+        betas = np.array([beta_start*(ratio**n) for n in range(num_diffusion_timesteps)], dtype=np.float64)
     else:
         raise NotImplementedError(beta_schedule)
+    assert abs(betas[-1] - beta_end) <= 0.05, f"ratio {ratio} is too high."
     assert betas.shape == (num_diffusion_timesteps,)
     return betas
 
-
-class Diffusion(object):
+class GeometricDiffusion(object):
     def __init__(self, args, config, device=None):
         self.args = args
         self.config = config
@@ -73,27 +49,13 @@ class Diffusion(object):
         self.model_var_type = config.model.var_type
         betas = get_beta_schedule(
             beta_schedule=config.diffusion.beta_schedule,
+            ratio=config.diffusion.ratio,
             beta_start=config.diffusion.beta_start,
             beta_end=config.diffusion.beta_end,
             num_diffusion_timesteps=config.diffusion.num_diffusion_timesteps,
         )
         betas = self.betas = torch.from_numpy(betas).float().to(self.device)
         self.num_timesteps = betas.shape[0]
-
-        alphas = 1.0 - betas
-        alphas_cumprod = alphas.cumprod(dim=0)
-        alphas_cumprod_prev = torch.cat(
-            [torch.ones(1).to(device), alphas_cumprod[:-1]], dim=0
-        )
-        posterior_variance = (
-            betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
-        )
-        if self.model_var_type == "fixedlarge":
-            self.logvar = betas.log()
-            # torch.cat(
-            # [posterior_variance[1:2], betas[1:]], dim=0).log()
-        elif self.model_var_type == "fixedsmall":
-            self.logvar = posterior_variance.clamp(min=1e-20).log()
 
     def train(self):
         args, config = self.args, self.config
@@ -144,7 +106,6 @@ class Diffusion(object):
                 e = torch.randn_like(x)
 
                 b = self.betas
-
                 # antithetic sampling
                 t = torch.randint(
                     low=0, high=self.num_timesteps, size=(n // 2 + 1,)
@@ -156,7 +117,9 @@ class Diffusion(object):
                 elif config.model.type == 'modified':
                     xT = torch.randn_like(x)
                     loss = loss_registry[config.model.type](model, x, xT, t, e, b)
-
+                elif config.model.type == 'geometric':
+                    xT = torch.randn_like(x)
+                    loss = loss_registry[config.model.type](model, x, xT, t, e, b)
                 tb_logger.add_scalar("loss", loss, global_step=step)
 
                 logging.info(
@@ -298,7 +261,7 @@ class Diffusion(object):
                 tvu.save_image(
                     x[i][j], os.path.join(self.args.image_folder, f"{j}_{i}.png")
                 )
-
+    # TODO modify for geometric series
     def sample_interpolation(self, model):
         config = self.config
 
@@ -359,7 +322,7 @@ class Diffusion(object):
                 seq = [int(s) for s in list(seq)]
             else:
                 raise NotImplementedError
-            from functions.denoising import generalized_steps, generalized_steps_modified
+            from functions.denoising_fixed_pt import generalized_steps, generalized_steps_modified
             wandb.init( project="DDIM-9-15", 
                         name=f"DDIM-modified-pretrained",
                         reinit=True,

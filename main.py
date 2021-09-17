@@ -10,6 +10,7 @@ import numpy as np
 import torch.utils.tensorboard as tb
 
 from runners.diffusion import Diffusion
+from runners.diffusion_geometric import GeometricDiffusion
 
 torch.set_printoptions(sci_mode=False)
 
@@ -86,6 +87,12 @@ def parse_args_and_config():
         help="eta used to control the variances of sigma",
     )
     parser.add_argument("--sequence", action="store_true")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="GeometricDiffusion",
+        help="model to use to train",
+    )
 
     args = parser.parse_args()
     args.log_path = os.path.join(args.exp, "logs", args.doc)
@@ -215,7 +222,7 @@ def main():
     logging.info("Exp comment = {}".format(args.comment))
 
     try:
-        runner = Diffusion(args, config)
+        runner = eval(args.model)(args, config)
         if args.sample:
             runner.sample()
         elif args.test:
