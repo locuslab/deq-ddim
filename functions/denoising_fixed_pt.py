@@ -1,6 +1,7 @@
 import torch
 from functions.utils import get_ortho_mat
 import wandb
+import numpy
 
 def compute_alpha(beta, t):
     beta = torch.cat([torch.zeros(1).to(beta.device), beta], dim=0)
@@ -14,6 +15,9 @@ def generalized_steps(x, seq, model, b, logger=None, **kwargs):
         x0_preds = []
         xs = [x]
         image_dim = x.shape
+        if isinstance(b, numpy.ndarray):
+            b = torch.from_numpy(b).float().cuda()
+        
         for i, j in zip(reversed(seq), reversed(seq_next)):
             t = (torch.ones(n) * i).to(x.device)
             next_t = (torch.ones(n) * j).to(x.device)
@@ -41,8 +45,21 @@ def generalized_steps(x, seq, model, b, logger=None, **kwargs):
                     "c2": c2,
                     "prediction et": torch.norm(et.reshape(image_dim[0], -1), -1).mean(),
                     "noise": torch.norm(noise_t.reshape(image_dim[0], -1), -1).mean(),
-                    "samples": [wandb.Image(xt_next[i]) for i in range(10)]
+                    #"samples": [wandb.Image(xt_next[i]) for i in range(10)]
                 })
+            else:
+                print({
+                    "alpha at": torch.mean(at),
+                    "alpha at_next": torch.mean(at_next),
+                    "xt": torch.norm(xt.reshape(image_dim[0], -1), -1).mean(),
+                    "xt_next": torch.norm(xt_next.reshape(image_dim[0], -1), -1).mean(),
+                    "c1": torch.mean(c1),
+                    "c2": torch.mean(c2),
+                    "prediction et": torch.norm(et.reshape(image_dim[0], -1), -1).mean(),
+                    "noise": torch.norm(noise_t.reshape(image_dim[0], -1), -1).mean(),
+                    #"samples": [wandb.Image(xt_next[i]) for i in range(10)]
+                })
+
     return xs, x0_preds
 
 def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):

@@ -9,6 +9,8 @@ import torch
 import torch.utils.data as data
 
 from models.diffusion import Model
+#from models.noise_conditional_diffusion import NoiseConditionalModel
+from models.diffusion_xT import ConditionedDiffusionModel
 from models.ema import EMAHelper
 from functions import get_optimizer
 from functions.losses import loss_registry
@@ -52,6 +54,9 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
     elif beta_schedule == "sigmoid":
         betas = np.linspace(-6, 6, num_diffusion_timesteps)
         betas = sigmoid(betas) * (beta_end - beta_start) + beta_start
+    elif beta_schedule == "geometric":
+        ratio = 1.005
+        betas = np.array([beta_start*(ratio**n) for n in range(num_diffusion_timesteps)], dtype=np.float64)
     else:
         raise NotImplementedError(beta_schedule)
     assert betas.shape == (num_diffusion_timesteps,)
@@ -105,7 +110,11 @@ class Diffusion(object):
             shuffle=True,
             num_workers=config.data.num_workers,
         )
-        model = Model(config)
+
+        if config.model.type == 'modified':
+            model = ConditionedDiffusionModel(config) 
+        else:
+            model = Model(config)
 
         model = model.to(self.device)
         model = torch.nn.DataParallel(model)
@@ -133,18 +142,18 @@ class Diffusion(object):
         for epoch in range(start_epoch, self.config.training.n_epochs):
             data_start = time.time()
             data_time = 0
-            for i, (x, y) in enumerate(train_loader):
+            for i, (x, xT) in enumerate(train_loader):
+                assert x.shape == xT.shape, f"Shape mismatch {x.shape} {xT.shape}"
                 n = x.size(0)
                 data_time += time.time() - data_start
                 model.train()
                 step += 1
 
-                x = x.to(self.device)
+                x = x.float().to(self.device)
                 x = data_transform(self.config, x)
                 e = torch.randn_like(x)
 
                 b = self.betas
-
                 # antithetic sampling
                 t = torch.randint(
                     low=0, high=self.num_timesteps, size=(n // 2 + 1,)
@@ -154,13 +163,13 @@ class Diffusion(object):
                 if config.model.type == 'simple':
                     loss = loss_registry[config.model.type](model, x, t, e, b)
                 elif config.model.type == 'modified':
-                    xT = torch.randn_like(x)
+                    xT = xT.float().to(self.device)
                     loss = loss_registry[config.model.type](model, x, xT, t, e, b)
 
                 tb_logger.add_scalar("loss", loss, global_step=step)
 
                 logging.info(
-                    f"step: {step}, loss: {loss.item()}, data time: {data_time / (i+1)}"
+                    f"epoch {epoch} step: {step}, loss: {loss.item()}, data time: {data_time / (i+1)}"
                 )
 
                 optimizer.zero_grad()
@@ -196,7 +205,10 @@ class Diffusion(object):
                 data_start = time.time()
 
     def sample(self):
-        model = Model(self.config)
+        if self.config.model.type == 'modified':
+            model = ConditionedDiffusionModel(self.config)
+        else:
+            model = Model(self.config)
 
         if not self.args.use_pretrained:
             if getattr(self.config.sampling, "ckpt_id", None) is None:
@@ -364,6 +376,7 @@ class Diffusion(object):
                         name=f"DDIM-modified-pretrained",
                         reinit=True,
                         config=self.config)
+            #xs = generalized_steps(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
             xs = generalized_steps_modified(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
             x = xs
         elif self.args.sample_type == "ddpm_noisy":

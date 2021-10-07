@@ -1,5 +1,6 @@
+device_ids: [0,]
 data:
-    dataset: "CIFAR10"
+    dataset: "CIFAR10Pair"
     image_size: 32
     channels: 3
     logit_transform: false
@@ -10,7 +11,7 @@ data:
     num_workers: 4
 
 model:
-    type: "simple"
+    type: "t_est"
     in_channels: 3
     out_ch: 3
     ch: 128
@@ -24,10 +25,11 @@ model:
     resamp_with_conv: True
 
 diffusion:
-    beta_schedule: linear
-    beta_start: 0.0001
-    beta_end: 0.02
+    beta_schedule: geometric
+    beta_start: 1
+    beta_end: 0
     num_diffusion_timesteps: 1000
+    ratio: 0.994
 
 training:
     batch_size: 128

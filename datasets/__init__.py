@@ -4,6 +4,7 @@ import numbers
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
 from torchvision.datasets import CIFAR10
+from datasets.cifar10_pair import CIFAR10Pair
 from datasets.celeba import CelebA
 from datasets.ffhq import FFHQ
 from datasets.lsun import LSUN
@@ -52,6 +53,20 @@ def get_dataset(args, config):
             transform=tran_transform,
         )
         test_dataset = CIFAR10(
+            os.path.join(args.exp, "datasets", "cifar10_test"),
+            train=False,
+            download=True,
+            transform=test_transform,
+        )
+
+    elif config.data.dataset == "CIFAR10Pair":
+        dataset = CIFAR10Pair(
+            os.path.join(args.exp, "datasets", "cifar10"),
+            train=True,
+            download=True,
+            transform=tran_transform,
+        )
+        test_dataset = CIFAR10Pair(
             os.path.join(args.exp, "datasets", "cifar10_test"),
             train=False,
             download=True,

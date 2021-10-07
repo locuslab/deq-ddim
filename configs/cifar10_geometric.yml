@@ -1,5 +1,6 @@
+device_ids: [0] #,1,2,3,4]
 data:
-    dataset: "CIFAR10"
+    dataset: "CIFAR10Pair"
     image_size: 32
     channels: 3
     logit_transform: false
@@ -7,7 +8,7 @@ data:
     gaussian_dequantization: false
     random_flip: true
     rescaled: true
-    num_workers: 4
+    num_workers: 5
 
 model:
     type: "geometric"
@@ -28,7 +29,7 @@ diffusion:
     beta_start: 1
     beta_end: 0
     num_diffusion_timesteps: 1000
-    ratio: 0.995
+    ratio: 0.994
 
 training:
     batch_size: 128
