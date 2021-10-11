@@ -65,12 +65,14 @@ def get_dataset(args, config):
             train=True,
             download=True,
             transform=tran_transform,
+            fixed_noise=config.data.fixed_noise,
         )
         test_dataset = CIFAR10Pair(
             os.path.join(args.exp, "datasets", "cifar10_test"),
             train=False,
             download=True,
             transform=test_transform,
+            fixed_noise=config.data.fixed_noise
         )
 
     elif config.data.dataset == "CELEBA":

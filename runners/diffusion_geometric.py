@@ -71,7 +71,7 @@ class GeometricDiffusion(object):
             num_workers=config.data.num_workers,
         )
         print(f"Using model {config.model.type}")
-        if config.model.type == 'modified':
+        if config.model.type == 'modified' or config.model.type == 'geometric':
             model = ConditionedDiffusionModel(config) 
         else:
             model = Model(config)
@@ -173,7 +173,10 @@ class GeometricDiffusion(object):
     def sample(self):
         # This uses exponential moving average for stability
         # Sample using a single GPU
-        model = Model(self.config)
+        if self.config.model.type == 'modified' or self.config.model.type == 'geometric':
+            model = ConditionedDiffusionModel(self.config)
+        else:
+            model = Model(self.config)
 
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -339,14 +342,15 @@ class GeometricDiffusion(object):
             else:
                 raise NotImplementedError
             from functions.denoising_fixed_pt import generalized_steps, generalized_steps_modified
-            wandb.init( project="DDIM-9-15", 
-                        name=f"DDIM-modified-pretrained",
-                        reinit=True,
-                        config=self.config)
-            xs = generalized_steps(x, seq, model, 
-                                    self.betas, 
-                                    logger=wandb.log, 
-                                    eta=self.args.eta)
+            # wandb.init( project="DDIM-9-15", 
+            #             name=f"DDIM-modified-pretrained",
+            #             reinit=True,
+            #             config=self.config)
+            # xs = generalized_steps(x, seq, model, 
+            #                         self.betas, 
+            #                         logger=wandb.log, 
+            #                         eta=self.args.eta)
+            xs = generalized_steps_modified(x, seq, model, self.betas, logger=None, eta=self.args.eta)
             x = xs
         elif self.args.sample_type == "ddpm_noisy":
             if self.args.skip_type == "uniform":

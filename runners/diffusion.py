@@ -47,6 +47,7 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
         )
     elif beta_schedule == "const":
         betas = beta_end * np.ones(num_diffusion_timesteps, dtype=np.float64)
+
     elif beta_schedule == "jsd":  # 1/T, 1/(T-1), 1/(T-2), ..., 1
         betas = 1.0 / np.linspace(
             num_diffusion_timesteps, 1, num_diffusion_timesteps, dtype=np.float64
@@ -54,6 +55,7 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
     elif beta_schedule == "sigmoid":
         betas = np.linspace(-6, 6, num_diffusion_timesteps)
         betas = sigmoid(betas) * (beta_end - beta_start) + beta_start
+
     elif beta_schedule == "geometric":
         ratio = 1.005
         betas = np.array([beta_start*(ratio**n) for n in range(num_diffusion_timesteps)], dtype=np.float64)
@@ -111,7 +113,7 @@ class Diffusion(object):
             num_workers=config.data.num_workers,
         )
 
-        if config.model.type == 'modified':
+        if 'modified' in config.model.type:
             model = ConditionedDiffusionModel(config) 
         else:
             model = Model(config)
@@ -162,7 +164,7 @@ class Diffusion(object):
 
                 if config.model.type == 'simple':
                     loss = loss_registry[config.model.type](model, x, t, e, b)
-                elif config.model.type == 'modified':
+                elif 'modified' in config.model.type:
                     xT = xT.float().to(self.device)
                     loss = loss_registry[config.model.type](model, x, xT, t, e, b)
 
@@ -205,7 +207,7 @@ class Diffusion(object):
                 data_start = time.time()
 
     def sample(self):
-        if self.config.model.type == 'modified':
+        if 'modified' in self.config.model.type:
             model = ConditionedDiffusionModel(self.config)
         else:
             model = Model(self.config)
@@ -372,12 +374,12 @@ class Diffusion(object):
             else:
                 raise NotImplementedError
             from functions.denoising import generalized_steps, generalized_steps_modified
-            wandb.init( project="DDIM-9-15", 
-                        name=f"DDIM-modified-pretrained",
-                        reinit=True,
-                        config=self.config)
+            # wandb.init( project="DDIM-9-15", 
+            #             name=f"DDIM-modified",
+            #             reinit=True,
+            #             config=self.config)
             #xs = generalized_steps(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
-            xs = generalized_steps_modified(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
+            xs = generalized_steps_modified(x, seq, model, self.betas, logger=None, eta=self.args.eta)
             x = xs
         elif self.args.sample_type == "ddpm_noisy":
             if self.args.skip_type == "uniform":

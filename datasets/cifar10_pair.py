@@ -11,10 +11,12 @@ class CIFAR10Pair(CIFAR10):
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
             download: bool = False,
+            fixed_noise: bool =False
     ) -> None:
 
         super(CIFAR10Pair, self).__init__(root, train=train, transform=transform,
                                       target_transform=target_transform, download=download)
+        self.fixed_noise = fixed_noise
     
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         """
@@ -27,7 +29,9 @@ class CIFAR10Pair(CIFAR10):
         img, target = self.data[index], self.targets[index]
 
         shape = img.shape
-        np.random.seed(index)
+        if self.fixed_noise:
+            np.random.seed(index)
+            
         rimg = np.random.randn( shape[2], shape[0], shape[1])
 
         # doing this so that it is consistent with all other datasets
