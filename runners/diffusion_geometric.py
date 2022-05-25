@@ -342,16 +342,15 @@ class GeometricDiffusion(object):
             else:
                 raise NotImplementedError
             from functions.denoising_fixed_pt import generalized_steps, generalized_steps_modified
-            wandb.init( project="DDIM-9-15", 
-                        name=f"DDIM-geometric",
-                        reinit=True,
-                        config=self.config)
-            #xs = generalized_steps(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
-            self.betas = torch.from_numpy(self.betas).float().cuda()
-            scale_xT=False
-            if self.config.model.type == "modifiedv2":
-                scale_xT=True
-            xs = generalized_steps_modified(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta, scale_xT=scale_xT)
+            # wandb.init( project="DDIM-9-15", 
+            #             name=f"DDIM-modified-pretrained",
+            #             reinit=True,
+            #             config=self.config)
+            # xs = generalized_steps(x, seq, model, 
+            #                         self.betas, 
+            #                         logger=wandb.log, 
+            #                         eta=self.args.eta)
+            xs = generalized_steps_modified(x, seq, model, self.betas, logger=None, eta=self.args.eta)
             x = xs
         elif self.args.sample_type == "ddpm_noisy":
             if self.args.skip_type == "uniform":

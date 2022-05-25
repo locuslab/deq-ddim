@@ -38,6 +38,7 @@ def modified_noise_estimation_loss(model,
     else:
         return (e - output).square().sum(dim=(1, 2, 3)).mean(dim=0)
 
+<<<<<<< HEAD
 def modified_noise_estimation_loss_v3(model,
                           x0: torch.Tensor,
                           xT: torch.Tensor,
@@ -82,7 +83,7 @@ def modified_noise_estimation_loss_v2(model,
     #rescale XT according to q(x_T|x_0)
     xT = a_T.sqrt() * x0 + (1 - a_T).sqrt() * xT
 
-    x0_coeff = (a_t - a_T)/(a_t.sqrt() * (1 - a_T))
+    x0_coeff = (1.0/a_t.sqrt()) * (a_t - a_T)/(1 - a_T)
     xT_coeff = ((1 - a_t) / (1 - a_T)) * (a_T / a_t).sqrt()
     e_coeff = (((1 - a_t)*(a_t - a_T))/(a_t * (1 - a_T))).sqrt()
 
@@ -140,7 +141,5 @@ loss_registry = {
     'simple': noise_estimation_loss,
     'modified': modified_noise_estimation_loss,
     'modifiedv2': modified_noise_estimation_loss_v2,
-    'modifiedv3': modified_noise_estimation_loss_v3,
     'geometric': geometric_noise_estimation_loss,
-#    't_est': t_est_noise_estimation_loss
 }
