@@ -1,4 +1,6 @@
 import math
+
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -295,7 +297,7 @@ class ConditionedDiffusionModel(nn.Module):
                                         stride=1,
                                         padding=1)
 
-    def forward(self, x, t, xT):
+    def forward(self, x, xT, t):
         assert x.shape[2] == x.shape[3] == self.resolution
         # (B, C, H, W) ->  (B, 2C, H, W)
         x = torch.cat((x, xT), dim=1)

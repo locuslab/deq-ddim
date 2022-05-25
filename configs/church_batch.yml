@@ -38,7 +38,7 @@ training:
     validation_freq: 2000
 
 sampling:
-    batch_size: 1
+    batch_size: 32
     last_only: True
 
 optim:

@@ -299,6 +299,7 @@ class Model(nn.Module):
                                         padding=1)
 
     def forward(self, x, t):
+        # print("Device ", x.device)
         assert x.shape[2] == x.shape[3] == self.resolution
 
         # timestep embedding
@@ -306,7 +307,6 @@ class Model(nn.Module):
         temb = self.temb.dense[0](temb)
         temb = nonlinearity(temb)
         temb = self.temb.dense[1](temb)
-
         # downsampling
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):
