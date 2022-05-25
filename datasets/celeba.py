@@ -1,3 +1,5 @@
+from pdb import Pdb
+import pdb
 import torch
 import os
 import PIL
@@ -112,6 +114,7 @@ class CelebA(VisionDataset):
             # Allow original archive to be deleted (zip and 7z)
             # Only need the extracted images
             if ext not in [".zip", ".7z"] and not check_integrity(fpath, md5):
+                print(f"Corrupted file {fpath}")
                 return False
 
         # Should check a hash of the images
@@ -127,8 +130,8 @@ class CelebA(VisionDataset):
         for (file_id, md5, filename) in self.file_list:
             download_file_from_google_drive(file_id, os.path.join(self.root, self.base_folder), filename, md5)
 
-        with zipfile.ZipFile(os.path.join(self.root, self.base_folder, "img_align_celeba.zip"), "r") as f:
-            f.extractall(os.path.join(self.root, self.base_folder))
+        # with zipfile.ZipFile(os.path.join(self.root, self.base_folder, "img_align_celeba.zip"), "r") as f:
+        #     f.extractall(os.path.join(self.root, self.base_folder))
 
     def __getitem__(self, index):
         X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))

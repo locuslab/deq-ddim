@@ -4,7 +4,7 @@ import wandb
 import numpy
 
 def compute_alpha(beta, t):
-    beta = torch.cat([torch.zeros(1).to(beta.device), beta], dim=0)
+    beta = torch.cat([torch.ones(1).to(beta.device), beta], dim=0)
     a = beta.index_select(0, t + 1).view(-1, 1, 1, 1)
     return a
 
@@ -62,7 +62,7 @@ def generalized_steps(x, seq, model, b, logger=None, **kwargs):
 
     return xs, x0_preds
 
-def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):
+def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, print_logs=False, **kwargs):
     with torch.no_grad():
         B = x.size(0)
         seq_next = [-1] + list(seq[:-1])
@@ -71,9 +71,6 @@ def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):
         xT = x
         image_dim = x.shape
         
-        if isinstance(b, numpy.ndarray):
-            b = torch.from_numpy(b).float().cuda()
-
         last_T = len(seq)-1
         T = (torch.ones(B)*last_T).to(x.device)
         aT = compute_alpha(b, T.long())
@@ -81,18 +78,21 @@ def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):
         for i, j in zip(reversed(seq), reversed(seq_next)):
             if i == last_T:
                 continue
-
+            # import pdb; pdb.set_trace()
             t = (torch.ones(B) * i).to(x.device)
             next_t = (torch.ones(B) * j).to(x.device)
 
             at = compute_alpha(b, t.long())
             at_next = compute_alpha(b, next_t.long())
 
-            xt = xs[-1].to('cuda')
-            et = model(xt, xT, t)
-
             at_aT_ = (1 - at)/(1 - aT)
             ataT = aT / at
+            
+            xt = xs[-1].to('cuda')
+            if scale_xT:
+                et = model(xt, (at_aT_) * (ataT).sqrt() * xT, t)
+            else:
+                et = model(xt, xT, t)
 
             # predicted x_0t
             x0_t = xt - (at_aT_) * (ataT).sqrt() * xT - et * (((at - aT)/at) * at_aT_).sqrt()
@@ -109,7 +109,7 @@ def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):
             c2 = (((1 - at_next)*(at_next - aT))/(at_next * (1 - aT)) - sigma_t ** 2).sqrt()
 
             noise_t = torch.randn_like(x)
-            xt_next = c0 * x0_t + c1 * xT + c2 * noise_t + sigma_t * et
+            xt_next = c0 * x0_t + c1 * xT + c2 * et + sigma_t * noise_t
             xs.append(xt_next.to('cpu'))
 
             log_dict = {
@@ -126,9 +126,78 @@ def generalized_steps_modified(x, seq, model, b, logger=None, **kwargs):
             }
 
             if logger is not None:
-                if i % 50 == 0:
+                if i % 50 == 0 or i < 50:
                     log_dict["samples"] = [wandb.Image(xt_next[i]) for i in range(10)]
                 logger(log_dict)
-            else:
+            elif print_logs:
                 print(i, j, log_dict)
+                                    
+    return xs, x0_preds
+
+
+def generalized_steps_fp(x, seq, model, b, logger=None, scale_xT=False, print_logs=False, **kwargs):
+    with torch.no_grad():
+        B = x.size(0)
+        seq_next = [-1] + list(seq[:-1])
+        x0_preds = []
+        xs = [x]
+        xT = x
+        image_dim = x.shape
+        
+        last_T = len(seq)-1
+        T = (torch.ones(B)*last_T).to(x.device)
+        aT = compute_alpha(b, T.long())
+
+        for i, j in zip(reversed(seq), reversed(seq_next)):
+            if i == last_T:
+                continue
+            # import pdb; pdb.set_trace()
+            t = (torch.ones(B) * i).to(x.device)
+            next_t = (torch.ones(B) * j).to(x.device)
+
+            at = compute_alpha(b, t.long())
+            at_next = compute_alpha(b, next_t.long())
+
+            at_aT_ = (1 - at)/(1 - aT)
+            ataT = aT / at
+            
+            xt = xs[-1].to('cuda')
+            if scale_xT:
+                et = model(xt, (at_aT_) * (ataT).sqrt() * xT, t)
+            else:
+                et = model(xt, xT, t)
+
+            # predicted x_0t
+            x0_t = xt - (at_aT_) * (ataT).sqrt() * xT - et * (((at - aT)/at) * at_aT_).sqrt()
+            x0_t = x0_t / ((at - aT)/(at.sqrt()*(1 - aT)))
+
+            x0_preds.append(x0_t.to('cpu'))
+            
+            c0 = (at_next - aT) / ((1 - aT) * at_next.sqrt())
+            c1 = ((1 - at_next)/(1 - aT)) * (aT/at_next).sqrt()
+
+            c2 = (((1 - at_next)*(at_next - aT))/(at_next * (1 - aT))).sqrt()
+
+            xt_next = c0 * x0_t + c1 * xT + c2 * et 
+            xs.append(xt_next.to('cpu'))
+
+            log_dict = {
+                "alpha at": torch.mean(at).item(),
+                "alpha at_next": torch.mean(at_next).item(),
+                "xt": torch.norm(xt.reshape(image_dim[0], -1), -1).mean(),
+                "xt_next": torch.norm(xt_next.reshape(image_dim[0], -1), -1).mean(),
+                "coeff x0": c0.squeeze().mean(),
+                "coeff xT": c1.squeeze().mean(),
+                "coeff et": c2.squeeze().mean(),
+                "sigma_t": sigma_t.squeeze().mean(),
+                "prediction et": torch.norm(et.reshape(image_dim[0], -1), -1).mean(),
+            }
+
+            if logger is not None:
+                if i % 50 == 0 or i < 50:
+                    log_dict["samples"] = [wandb.Image(xt_next[i]) for i in range(10)]
+                logger(log_dict)
+            elif print_logs:
+                print(i, j, log_dict)
+                                    
     return xs, x0_preds

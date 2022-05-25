@@ -10,10 +10,10 @@ import numpy as np
 import torch.utils.tensorboard as tb
 
 from runners.diffusion import Diffusion
+#from runners.diffusion_parallel import Diffusion
 from runners.diffusion_geometric import GeometricDiffusion
 
 torch.set_printoptions(sci_mode=False)
-
 
 def parse_args_and_config():
     parser = argparse.ArgumentParser(description=globals()["__doc__"])
@@ -93,6 +93,87 @@ def parse_args_and_config():
         default="GeometricDiffusion",
         help="model to use to train",
     )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="default",
+        help="sampling method to use - anderson/default",
+    )
+    parser.add_argument(
+        "--ls_opt",
+        action="store_true",
+        help="When true, performs latent space optimization",
+    )
+    parser.add_argument(
+        "--lambda1",
+        type=float,
+        default=1,
+        help="Value of regularization parameter on ||X_pred - x^**||",
+    )
+    parser.add_argument(
+        "--lambda2",
+        type=float,
+        default=1e-3,
+        help="Value of regularization parameter on x_T",
+    )
+    parser.add_argument(
+        "--lambda3",
+        type=float,
+        default=1e-2,
+        help="Value of regularization parameter for fp",
+    )
+    parser.add_argument(
+        "--tau",
+        type=float,
+        default=0.5,
+        help="Value of damping parameter in anderson",
+    )
+    parser.add_argument(
+        "--pg_steps",
+        type=int,
+        default=5,
+        help="Number of steps while computing phantom gradients",
+    )
+    parser.add_argument(
+        "--use_wandb",
+        action="store_true",
+        help="Value of damping parameter in anderson",
+    )
+    parser.add_argument(
+        "--no_augmentation",
+        action="store_true",
+        help="If set to true, no augmenttion will be applied to dataset",
+    )
+    parser.add_argument(
+        "--m",
+        type=int,
+        default=5,
+        help="Anderson parameters m",
+    )
+    parser.add_argument(
+        "--max_anderson_iters",
+        type=int,
+        default=15,
+        help="Max number of iterations for Anderson",
+    )
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=0.001,
+        help="Anderson parameter lambda",
+    )
+    parser.add_argument(
+        "--tol",
+        type=float,
+        default=0.01,
+        help="Tolerance for residuals in Anderson acceleration",
+    )
+    parser.add_argument(
+        "--anderson_beta",
+        type=float,
+        default=1.0,
+        help="Anderson parameter beta",
+    )
 
     args = parser.parse_args()
     args.log_path = os.path.join(args.exp, "logs", args.doc)
@@ -105,7 +186,7 @@ def parse_args_and_config():
     tb_path = os.path.join(args.exp, "tensorboard", args.doc)
 
     if not args.test and not args.sample:
-        if not args.resume_training:
+        if not args.resume_training and not args.ls_opt:
             if os.path.exists(args.log_path):
                 overwrite = False
                 if args.ni:
@@ -124,11 +205,11 @@ def parse_args_and_config():
                 else:
                     print("Folder exists. Program halted.")
                     sys.exit(0)
-            else:
-                os.makedirs(args.log_path)
+        elif not args.ls_opt:
+            os.makedirs(args.log_path)
 
-            with open(os.path.join(args.log_path, "config.yml"), "w") as f:
-                yaml.dump(new_config, f, default_flow_style=False)
+        with open(os.path.join(args.log_path, "config.yml"), "w") as f:
+            yaml.dump(new_config, f, default_flow_style=False)
 
         new_config.tb_logger = tb.SummaryWriter(log_dir=tb_path)
         # setup logger
@@ -162,7 +243,7 @@ def parse_args_and_config():
         logger.addHandler(handler1)
         logger.setLevel(level)
 
-        if args.sample:
+        if args.sample or args.ls_opt:
             os.makedirs(os.path.join(args.exp, "image_samples"), exist_ok=True)
             args.image_folder = os.path.join(
                 args.exp, "image_samples", args.image_folder
@@ -227,6 +308,9 @@ def main():
             runner.sample()
         elif args.test:
             runner.test()
+        elif args.ls_opt:
+            print("Performing latent space optimization!!!")
+            runner.ls_opt()
         else:
             runner.train()
     except Exception:

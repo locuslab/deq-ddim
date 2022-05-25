@@ -9,6 +9,7 @@ import torch
 import torch.utils.data as data
 
 from models.diffusion import Model
+#from models.noise_conditional_diffusion import NoiseConditionalModel
 from models.diffusion_xT import ConditionedDiffusionModel
 from models.ema import EMAHelper
 from functions import get_optimizer
@@ -25,40 +26,83 @@ def torch2hwcuint8(x, clip=False):
     x = (x + 1.0) / 2.0
     return x
 
-def get_beta_schedule(beta_schedule, ratio, beta_start=1, beta_end=0, num_diffusion_timesteps=1000):
-    if beta_schedule == "geometric":
+
+def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
+    def sigmoid(x):
+        return 1 / (np.exp(-x) + 1)
+
+    if beta_schedule == "quad":
+        betas = (
+            np.linspace(
+                beta_start ** 0.5,
+                beta_end ** 0.5,
+                num_diffusion_timesteps,
+                dtype=np.float64,
+            )
+            ** 2
+        )
+    elif beta_schedule == "linear":
+        betas = np.linspace(
+            beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64
+        )
+    elif beta_schedule == "const":
+        betas = beta_end * np.ones(num_diffusion_timesteps, dtype=np.float64)
+
+    elif beta_schedule == "jsd":  # 1/T, 1/(T-1), 1/(T-2), ..., 1
+        betas = 1.0 / np.linspace(
+            num_diffusion_timesteps, 1, num_diffusion_timesteps, dtype=np.float64
+        )
+    elif beta_schedule == "sigmoid":
+        betas = np.linspace(-6, 6, num_diffusion_timesteps)
+        betas = sigmoid(betas) * (beta_end - beta_start) + beta_start
+
+    elif beta_schedule == "geometric":
+        ratio = 1.005
         betas = np.array([beta_start*(ratio**n) for n in range(num_diffusion_timesteps)], dtype=np.float64)
     else:
         raise NotImplementedError(beta_schedule)
-    assert abs(betas[-1] - beta_end) <= 0.05, f"ratio {ratio} is too high."
     assert betas.shape == (num_diffusion_timesteps,)
     return betas
 
-class GeometricDiffusion(object):
-    def __init__(self, args, config, device_ids=None):
+
+class Diffusion(object):
+    def __init__(self, args, config, device=None):
         self.args = args
         self.config = config
-        if device_ids is None and "device_ids" not in config:
-            device_ids = [
+        if device is None and "device_ids" not in config:
+            device = (
                 torch.device("cuda")
                 if torch.cuda.is_available()
                 else torch.device("cpu")
-            ]
+            )
         elif "device_ids" in config:
-            device_ids = config.device_ids
-        self.devices = device_ids
+            device = config.device_ids
+        self.device = device
 
         self.model_var_type = config.model.var_type
         betas = get_beta_schedule(
             beta_schedule=config.diffusion.beta_schedule,
-            ratio=config.diffusion.ratio,
             beta_start=config.diffusion.beta_start,
             beta_end=config.diffusion.beta_end,
             num_diffusion_timesteps=config.diffusion.num_diffusion_timesteps,
         )
-        self.betas = betas
-        # betas = self.betas = torch.from_numpy(betas).float().to(self.device)
+        betas = self.betas = torch.from_numpy(betas).float().cuda()
         self.num_timesteps = betas.shape[0]
+
+        alphas = 1.0 - betas
+        alphas_cumprod = alphas.cumprod(dim=0)
+        alphas_cumprod_prev = torch.cat(
+            [torch.ones(1).cuda(), alphas_cumprod[:-1]], dim=0
+        )
+        posterior_variance = (
+            betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+        )
+        if self.model_var_type == "fixedlarge":
+            self.logvar = betas.log()
+            # torch.cat(
+            # [posterior_variance[1:2], betas[1:]], dim=0).log()
+        elif self.model_var_type == "fixedsmall":
+            self.logvar = posterior_variance.clamp(min=1e-20).log()
 
     def train(self):
         args, config = self.args, self.config
@@ -71,11 +115,12 @@ class GeometricDiffusion(object):
             num_workers=config.data.num_workers,
         )
         print(f"Using model {config.model.type}")
-        if config.model.type == 'modified' or config.model.type == 'geometric':
+        if 'modified' in config.model.type:
             model = ConditionedDiffusionModel(config) 
         else:
             model = Model(config)
-        model = torch.nn.DataParallel(model, device_ids = self.devices).cuda()
+
+        model = torch.nn.DataParallel(model, device_ids = self.device).cuda()
 
         optimizer = get_optimizer(self.config, model.parameters())
 
@@ -97,20 +142,21 @@ class GeometricDiffusion(object):
             if self.config.model.ema:
                 ema_helper.load_state_dict(states[4])
 
-        b = torch.from_numpy(self.betas).float().cuda()
         for epoch in range(start_epoch, self.config.training.n_epochs):
             data_start = time.time()
             data_time = 0
             for i, (x, xT) in enumerate(train_loader):
+                assert x.shape == xT.shape, f"Shape mismatch {x.shape} {xT.shape}"
                 n = x.size(0)
                 data_time += time.time() - data_start
                 model.train()
                 step += 1
 
-                assert x.shape == xT.shape, f"Shape mismatch {x.shape} {xT.shape}"
-                x = x.cuda()
+                x = x.float().cuda()
                 x = data_transform(self.config, x)
                 e = torch.randn_like(x).cuda()
+
+                b = self.betas.cuda()
                 # antithetic sampling
                 t = torch.randint(
                     low=0, high=self.num_timesteps, size=(n // 2 + 1,)
@@ -119,19 +165,10 @@ class GeometricDiffusion(object):
 
                 if config.model.type == 'simple':
                     loss = loss_registry[config.model.type](model, x, t, e, b)
-                elif config.model.type == 'modified':
-                    xT = xT.cuda()
+                elif 'modified' in config.model.type:
+                    xT = xT.float().cuda()
                     loss = loss_registry[config.model.type](model, x, xT, t, e, b)
-                elif config.model.type == 'geometric':
-                    xT = xT.cuda()
-                    loss = loss_registry[config.model.type](model, x, xT, t, e, b)
-                elif config.model.type == 't_est':
-                    xT = xT.cuda()
-                    r = torch.Tensor([config.diffusion.ratio]).cuda()
-                    loss = loss_registry[config.model.type](model, x, xT, t, e, b, r)
-                else: 
-                    raise ValueError("Unknown model type {config.model.type}")
-                
+
                 tb_logger.add_scalar("loss", loss, global_step=step)
 
                 logging.info(
@@ -171,15 +208,13 @@ class GeometricDiffusion(object):
                 data_start = time.time()
 
     def sample(self):
-        # This uses exponential moving average for stability
-        # Sample using a single GPU
-        if self.config.model.type == 'modified' or self.config.model.type == 'geometric':
+        if 'modified' in self.config.model.type:
             model = ConditionedDiffusionModel(self.config)
         else:
             model = Model(self.config)
-
+        
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
+        
         if not self.args.use_pretrained:
             if getattr(self.config.sampling, "ckpt_id", None) is None:
                 states = torch.load(
@@ -280,7 +315,7 @@ class GeometricDiffusion(object):
                 tvu.save_image(
                     x[i][j], os.path.join(self.args.image_folder, f"{j}_{i}.png")
                 )
-    # TODO modify for geometric series
+
     def sample_interpolation(self, model):
         config = self.config
 
@@ -341,17 +376,16 @@ class GeometricDiffusion(object):
                 seq = [int(s) for s in list(seq)]
             else:
                 raise NotImplementedError
-            from functions.denoising_fixed_pt import generalized_steps, generalized_steps_modified
+            from functions.denoising import generalized_steps, generalized_steps_modified
             wandb.init( project="DDIM-9-15", 
-                        name=f"DDIM-geometric",
+                        name=f"DDIM-modified",
                         reinit=True,
                         config=self.config)
             #xs = generalized_steps(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta)
-            self.betas = torch.from_numpy(self.betas).float().cuda()
             scale_xT=False
             if self.config.model.type == "modifiedv2":
-                scale_xT=True
-            xs = generalized_steps_modified(x, seq, model, self.betas, logger=wandb.log, eta=self.args.eta, scale_xT=scale_xT)
+                scale_xT=True    
+            xs = generalized_steps_modified(x, seq, model, self.betas, logger=wandb.log, scale_xT=scale_xT, print_logs=False, eta=self.args.eta)
             x = xs
         elif self.args.sample_type == "ddpm_noisy":
             if self.args.skip_type == "uniform":

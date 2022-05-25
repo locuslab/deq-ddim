@@ -34,13 +34,21 @@ def get_dataset(args, config):
             [transforms.Resize(config.data.image_size), transforms.ToTensor()]
         )
     else:
-        tran_transform = transforms.Compose(
-            [
-                transforms.Resize(config.data.image_size),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.ToTensor(),
-            ]
-        )
+        if args.no_augmentation: 
+            tran_transform = transforms.Compose(
+                [
+                    transforms.Resize(config.data.image_size),
+                    transforms.ToTensor(),
+                ]
+            )
+        else:
+            tran_transform = transforms.Compose(
+                [
+                    transforms.Resize(config.data.image_size),
+                    transforms.RandomHorizontalFlip(p=0.5),
+                    transforms.ToTensor(),
+                ]
+            )
         test_transform = transforms.Compose(
             [transforms.Resize(config.data.image_size), transforms.ToTensor()]
         )
@@ -128,7 +136,7 @@ def get_dataset(args, config):
         val_folder = "{}_val".format(config.data.category)
         if config.data.random_flip:
             dataset = LSUN(
-                root=os.path.join(args.exp, "datasets", "lsun"),
+                root=os.path.join(args.exp, "datasets", "lsun", config.data.category),
                 classes=[train_folder],
                 transform=transforms.Compose(
                     [
@@ -141,7 +149,7 @@ def get_dataset(args, config):
             )
         else:
             dataset = LSUN(
-                root=os.path.join(args.exp, "datasets", "lsun"),
+                root=os.path.join(args.exp, "datasets", "lsun", config.data.category),
                 classes=[train_folder],
                 transform=transforms.Compose(
                     [
@@ -153,7 +161,7 @@ def get_dataset(args, config):
             )
 
         test_dataset = LSUN(
-            root=os.path.join(args.exp, "datasets", "lsun"),
+            root=os.path.join(args.exp, "datasets", "lsun", config.data.category),
             classes=[val_folder],
             transform=transforms.Compose(
                 [
