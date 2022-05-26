@@ -283,7 +283,6 @@ def parse_args_and_config():
 
     return args, new_config
 
-
 def dict2namespace(config):
     namespace = argparse.Namespace()
     for key, value in config.items():
