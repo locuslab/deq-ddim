@@ -156,7 +156,6 @@ def anderson(f, x0, args, m=3, lam=1e-3, max_iter=50, tol=1e-3, beta = 1.0, logg
                 log_metrics["normalized_residual"] = normalized_residual
 
                 log_metrics["alpha"] = torch.norm(alpha, dim=-1).mean()
-                #if k % 20 == 0 or k < 10:
                 log_metrics["samples"] = [wandb.Image(X[:, k%m].view_as(x0).to('cpu')[ts]) for ts in args['plot_timesteps']]
                 logger(log_metrics)
     x_eq = X[:,k%m].view_as(x0)#[args['gather_idx']].to('cpu')

@@ -1,6 +1,5 @@
 import torch.optim as optim
 
-
 def get_optimizer(config, parameters):
     if config.optim.optimizer == 'Adam':
         return optim.Adam(parameters, lr=config.optim.lr, weight_decay=config.optim.weight_decay,
@@ -13,3 +12,4 @@ def get_optimizer(config, parameters):
     else:
         raise NotImplementedError(
             'Optimizer {} not understood.'.format(config.optim.optimizer))
+

@@ -8,7 +8,11 @@ data:
     random_flip: true
     rescaled: true
     num_workers: 4
+<<<<<<< HEAD
+    fixed_noise: False
+=======
     fixed_noise: false
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
 
 model:
     type: "modified"

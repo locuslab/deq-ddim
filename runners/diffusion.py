@@ -591,32 +591,6 @@ class Diffusion(object):
         else:
             raise NotImplementedError("Sample procedure not defined")
 
-    # def sample_time(self, model):
-    #     config = self.config
-    #     img_id = len(glob.glob(f"{self.args.image_folder}/*"))
-    #     print(f"starting from image {img_id}")
-    #     total_n_samples = 10000
-    #     n_rounds = (total_n_samples - img_id) // config.sampling.batch_size
-    #     total_time = 0
-    #     with torch.no_grad():
-    #         for round in tqdm.tqdm(
-    #             range(n_rounds), desc="Evaluting time for generating images."
-    #         ):
-    #             bsz = config.sampling.batch_size
-    #             x = torch.randn(
-    #                 bsz,
-    #                 config.data.channels,
-    #                 config.data.image_size,
-    #                 config.data.image_size,
-    #                 device=self.device,
-    #             )
-    #             st = time.time()
-    #             cur_t = torch.randint(0, self.num_timesteps, size=(1,))
-    #             t = (torch.ones(bsz) * cur_t).to(x.device)
-    #             e = model(x, t)
-    #             total_time += time.time() - st
-    #             print("Total time ", total_time, "Avg time ", total_time/(round+1))
-
     def get_additional_anderson_args(self, all_xt, xT, betas, batch_size):
         from functions.ddim_anderson import compute_alpha
         seq = self.get_timestep_sequence()

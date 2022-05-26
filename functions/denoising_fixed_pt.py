@@ -73,6 +73,7 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
         
         if isinstance(b, numpy.ndarray):
             b = torch.from_numpy(b).float().cuda()
+            
         last_T = len(seq)-1
         T = (torch.ones(B)*last_T).to(x.device)
         aT = compute_alpha(b, T.long())
@@ -86,11 +87,14 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
             at = compute_alpha(b, t.long())
             at_next = compute_alpha(b, next_t.long())
 
-            xt = xs[-1].to('cuda')
-            et = model(xt, xT, t)
-
             at_aT_ = (1 - at)/(1 - aT)
             ataT = aT / at
+            
+            xt = xs[-1].to('cuda')
+            if scale_xT:
+                et = model(xt, (at_aT_) * (ataT).sqrt() * xT, t)
+            else:
+                et = model(xt, xT, t)
 
             # predicted x_0t
             x0_t = xt - (at_aT_) * (ataT).sqrt() * xT - et * (((at - aT)/at) * at_aT_).sqrt()
@@ -107,7 +111,7 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
             c2 = (((1 - at_next)*(at_next - aT))/(at_next * (1 - aT)) - sigma_t ** 2).sqrt()
 
             noise_t = torch.randn_like(x)
-            xt_next = c0 * x0_t + c1 * xT + c2 * noise_t + sigma_t * et
+            xt_next = c0 * x0_t + c1 * xT + c2 * et + sigma_t * noise_t
             xs.append(xt_next.to('cpu'))
 
             log_dict = {
@@ -128,8 +132,7 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
                     log_dict["samples"] = [wandb.Image(xt_next[i]) for i in range(10)]
                 logger(log_dict)
             elif print_logs:
-                print(i, j, log_dict)
-                                    
+                print(i, j, log_dict)                            
     return xs, x0_preds
 
 
