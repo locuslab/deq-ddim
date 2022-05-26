@@ -38,3 +38,5 @@ where
 - `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
 - `PG_STEPS` is the number of iterations while computing phantom gradients. We set this value to 1.
 - `DAMPING_FACTOR` is the value of damping used in phantom gradients. We set this to 0.1.
+
+Please check [invert_models.sh](scripts/invert_models.sh) for sampling commands for all the datasets.
