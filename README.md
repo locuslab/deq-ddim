@@ -1,6 +1,6 @@
 # Deep Equilibrium Approaches to Diffusion Models
 
-This codebase has been adapted largely from the repository from Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note, we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
+This codebase has been adapted largely from the repository from Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note: we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
 
 ## Running the Experiments
 The code has been tested on PyTorch 1.11.
