@@ -2,7 +2,6 @@ import os
 import logging
 import time
 import glob
-from functions import latent_space_opt_helper
 from functions import latent_space_opt_anderson
 
 import numpy as np
@@ -20,14 +19,10 @@ from functions.losses import loss_registry
 from datasets import get_dataset, data_transform, inverse_data_transform
 from functions.ckpt_util import get_ckpt_path
 from functions.denoising import generalized_steps
-#from functions.latent_space_opt_helper import find_source_noise
-from functions.latent_space_opt_anderson import find_source_noise
 import time 
 
-import torchvision.transforms as T
 import torchvision.utils as tvu
 import wandb
-from collections import OrderedDict
 
 def torch2hwcuint8(x, clip=False):
     if clip:
@@ -828,22 +823,10 @@ class Diffusion(object):
             from functions.ddim_anderson import fp_implicit_iters_anderson
 
             logger=None
-            use_wandb = False
-            if use_wandb:
-                wandb.init( #project="latent-space-opt",
-                            #project="DDIM-9-15", 
-                            project='DEQ-convergence',
-                            #project="DEQ-Efficiency-exps",
-                            group=f"DDIM-{self.args.data.dataset}-{self.args.data.category}-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
-                            reinit=True,
-                            config=self.config)
-                logger = wandb.log
-
             if method == 'anderson':
                 use_wandb = False
                 if use_wandb:
                     wandb.init( project="DEQ-convergence",
-                                #group=f"DDIM-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
                                 group=f"DDIM-{self.config.data.dataset}-{self.config.data.category}-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
                                 reinit=True,
                                 config=self.config)
