@@ -8,21 +8,25 @@ data:
     random_flip: true
     rescaled: true
     num_workers: 4
+<<<<<<< HEAD
     fixed_noise: False
+=======
+    fixed_noise: false
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
 
 model:
     type: "modified"
-    in_channels: 3
+    in_channels: 6
     out_ch: 3
     ch: 128
     ch_mult: [1, 2, 2, 2]
     num_res_blocks: 2
-    attn_resolutions: [16, ]
+    attn_resolutions: [16,]
     dropout: 0.1
     var_type: fixedlarge
     ema_rate: 0.9999
-    ema: True
-    resamp_with_conv: True
+    ema: true
+    resamp_with_conv: true
 
 diffusion:
     beta_schedule: linear
@@ -31,8 +35,8 @@ diffusion:
     num_diffusion_timesteps: 1000
 
 training:
-    batch_size: 96
-    n_epochs: 10000
+    batch_size: 512
+    n_epochs: 20000
     n_iters: 5000000
     snapshot_freq: 10000
     validation_freq: 5000
@@ -40,7 +44,7 @@ training:
 sampling:
     batch_size: 64
     last_only: True
-
+    #ckpt_id: 300000
 optim:
     weight_decay: 0.000
     optimizer: "Adam"

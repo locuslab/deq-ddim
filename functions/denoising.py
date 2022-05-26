@@ -101,7 +101,6 @@ def generalized_steps(x, seq, model, b, logger=None, print_logs=False, **kwargs)
 def generalized_steps_fp_ddim(x, seq, model, b, logger=None, print_logs=False, **kwargs):
     with torch.no_grad():
         B = x.size(0)
-
         x0_preds = []
         xs = [x]
 
@@ -144,61 +143,6 @@ def generalized_steps_fp_ddim(x, seq, model, b, logger=None, print_logs=False, *
                 logger(log_dict)
             elif print_logs:
                 print(t, max(-1, i-diff), log_dict)
-
-            xs.append(xt_next.view(image_dim).to('cpu'))
-
-    return xs, x0_preds
-
-def generalized_steps_fixed_U_ddim(x, seq, model, b, logger=None, print_logs=False, **kwargs):
-    with torch.no_grad():
-        B = x.size(0)
-        seq_next = [-1] + list(seq[:-1])
-        x0_preds = []
-        xs = [x]
-
-        image_dim = x.shape
-        U = get_ortho_mat(x.dtype, x.shape, x.device, method='bases')
-        noise_t = torch.randn_like(x.view(image_dim[0], -1))
-
-        for i, j in zip(reversed(seq), reversed(seq_next)):
-            t = (torch.ones(B) * i).to(x.device)
-            next_t = (torch.ones(B) * j).to(x.device)
-
-            at = compute_alpha(b, t.long())
-            at_next = compute_alpha(b, next_t.long())
-            xt = xs[-1].to('cuda')
-            et = model(xt, t)
-            
-            x0_t = (xt - et * (1 - at).sqrt()) / at.sqrt()
-            x0_preds.append(x0_t.to('cpu'))
-            
-            sigma_t = (
-                kwargs.get("eta", 0) * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt()
-            )
-            et_coeff = ((1 - at_next) - sigma_t ** 2).sqrt()
-
-            #xt_next = (at_next.sqrt() * x0_t).view(image_dim[0], -1) + c1.squeeze().unsqueeze(1) * noise + c2.squeeze().unsqueeze(1) * et.view(image_dim[0], -1)
-            
-            xt_next = at_next.sqrt() * x0_t + et_coeff * et + sigma_t * noise_t.view(image_dim)
-            noise_t = torch.matmul(noise_t, U)
-
-            log_dict = {
-                    "alpha at": torch.mean(at),
-                    "alpha at_next": torch.mean(at_next),
-                    "xt": torch.norm(xt.reshape(image_dim[0], -1), -1).mean(),
-                    "xt_next": torch.norm(xt_next.reshape(image_dim[0], -1), -1).mean(),
-                    "coeff x0": at_next.sqrt().squeeze().mean(),
-                    "coeff et": et_coeff.squeeze().mean(),
-                    "prediction et": torch.norm(et.reshape(image_dim[0], -1), -1).mean(),
-                    "noise": torch.norm(noise_t.reshape(image_dim[0], -1), -1).mean(),
-                }
-            
-            if logger is not None:
-                if i % 50 == 0 or i < 50:
-                    log_dict["samples"] = [wandb.Image(xt_next[i]) for i in range(10)]
-                logger(log_dict)
-            elif print_logs:
-                print(i, j, log_dict)
 
             xs.append(xt_next.view(image_dim).to('cpu'))
 
@@ -254,7 +198,6 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
         for i, j in zip(reversed(seq), reversed(seq_next)):
             if i == last_T:
                 continue
-            # import pdb; pdb.set_trace()
             t = (torch.ones(B) * i).to(x.device)
             next_t = (torch.ones(B) * j).to(x.device)
 
@@ -307,7 +250,6 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
                 logger(log_dict)
             elif print_logs:
                 print(i, j, log_dict)
-                                    
     return xs, x0_preds
 
 
@@ -359,9 +301,6 @@ def generalized_steps_modified_fixed_U(x, seq, model, b, logger=None, scale_xT=F
             )
 
             et_coeff = (((1 - at_next)*(at_next - aT))/(at_next * (1 - aT)) - sigma_t ** 2).sqrt()
-
-            # xt_next = (x0_coeff * x0_t).view(image_dim[0], -1) + (xT_coeff * xT).view(image_dim[0], -1) + \
-            #            (et_coeff * et).view(image_dim[0], -1) + sigma_t.squeeze().unsqueeze(1) * noise_t
 
             xt_next = x0_coeff * x0_t + xT_coeff * xT + \
                         et_coeff * et + sigma_t * noise_t.view(image_dim)

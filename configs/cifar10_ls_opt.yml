@@ -1,5 +1,9 @@
 data:
     dataset: "CIFAR10Pair"
+<<<<<<< HEAD
+=======
+    category: ""
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
     image_size: 32
     channels: 3
     logit_transform: false
@@ -32,7 +36,11 @@ diffusion:
 
 training:
     batch_size: 1
+<<<<<<< HEAD
     n_epochs: 1000
+=======
+    n_epochs: 400
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
     n_iters: 5000000
     snapshot_freq: 50
     validation_freq: 2000
@@ -44,13 +52,21 @@ sampling:
 optim:
     weight_decay: 0.000
     optimizer: "Adam"
+<<<<<<< HEAD
     lr: 0.005
+=======
+    lr: 0.01
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
     beta1: 0.9
     amsgrad: false
     eps: 0.00000001
     grad_clip: 50000.0
 
 ls_opt:
+<<<<<<< HEAD
     num_samples: 50
+=======
+    num_samples: 1
+>>>>>>> 4aebd4203c4aa91727f591ee3f5903e600b7a57b
     in_distr: false
     use_parallel: true

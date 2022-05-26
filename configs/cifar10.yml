@@ -1,5 +1,6 @@
 data:
     dataset: "CIFAR10"
+    category: ""
     image_size: 32
     channels: 3
     logit_transform: false
@@ -8,7 +9,7 @@ data:
     random_flip: true
     rescaled: true
     num_workers: 4
-
+    fixed_noise: false
 model:
     type: "simple"
     in_channels: 3
@@ -30,16 +31,16 @@ diffusion:
     num_diffusion_timesteps: 1000
 
 training:
-    batch_size: 128
+    batch_size: 100
     n_epochs: 10000
     n_iters: 5000000
-    snapshot_freq: 5000
+    snapshot_freq: 20000
     validation_freq: 2000
 
 sampling:
-    batch_size: 64
+    batch_size: 1
     last_only: True
-
+    #ckpt_id: 200000
 optim:
     weight_decay: 0.000
     optimizer: "Adam"

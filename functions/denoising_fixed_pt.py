@@ -71,6 +71,9 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
         xT = x
         image_dim = x.shape
         
+        if isinstance(b, numpy.ndarray):
+            b = torch.from_numpy(b).float().cuda()
+            
         last_T = len(seq)-1
         T = (torch.ones(B)*last_T).to(x.device)
         aT = compute_alpha(b, T.long())
@@ -78,7 +81,6 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
         for i, j in zip(reversed(seq), reversed(seq_next)):
             if i == last_T:
                 continue
-            # import pdb; pdb.set_trace()
             t = (torch.ones(B) * i).to(x.device)
             next_t = (torch.ones(B) * j).to(x.device)
 
@@ -130,8 +132,7 @@ def generalized_steps_modified(x, seq, model, b, logger=None, scale_xT=False, pr
                     log_dict["samples"] = [wandb.Image(xt_next[i]) for i in range(10)]
                 logger(log_dict)
             elif print_logs:
-                print(i, j, log_dict)
-                                    
+                print(i, j, log_dict)                            
     return xs, x0_preds
 
 

@@ -119,28 +119,10 @@ def geometric_noise_estimation_loss(model,
     else:
         return (e - output).square().sum(dim=(1, 2, 3)).mean(dim=0)
 
-# def t_est_noise_estimation_loss(model,
-#                           x0: torch.Tensor,
-#                           xT: torch.Tensor,
-#                           t: torch.LongTensor,
-#                           e: torch.Tensor,
-#                           b: torch.Tensor, 
-#                           r: torch.Tensor, 
-#                           keepdim=False):
-#     a = b.index_select(0, t).view(-1, 1, 1, 1)
-#     x = x0 * a.sqrt()  + xT * (1.0 - a).sqrt() + e * (1.0 - a).sqrt()
-#     t_est = torch.ceil(torch.log(b.index_select(0, t))/torch.log(r))
-#     output = model(x, t_est.float())
-#     if keepdim:
-#         return (e - output).square().sum(dim=(1, 2, 3))
-#     else:
-#         return (e - output).square().sum(dim=(1, 2, 3)).mean(dim=0)
-
 loss_registry = {
     'simple': noise_estimation_loss,
     'modified': modified_noise_estimation_loss,
     'modifiedv2': modified_noise_estimation_loss_v2,
     'modifiedv3': modified_noise_estimation_loss_v3,
     'geometric': geometric_noise_estimation_loss,
-#    't_est': t_est_noise_estimation_loss
 }
