@@ -1,6 +1,6 @@
 # Deep Equilibrium Approaches to Diffusion Models
 
-This codebase has been adapted largely from the repository from Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note: we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
+This codebase has been adapted largely from the repository of Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note: we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
 
 ## Running the Experiments
 The code has been tested on PyTorch 1.11.
@@ -38,3 +38,5 @@ where
 - `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
 - `PG_STEPS` is the number of iterations while computing phantom gradients. We set this value to 1.
 - `DAMPING_FACTOR` is the value of damping used in phantom gradients. We set this to 0.1.
+
+Please check [invert_models.sh](scripts/invert_models.sh) for sampling commands for all the datasets.
