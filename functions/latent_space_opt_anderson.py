@@ -211,7 +211,7 @@ class DEQLatentSpaceOpt(object):
         args['image_dim'] = x.shape
 
         with torch.no_grad():
-            x_eq = anderson(compute_multi_step, x, args, m=3, lam=1e-3, max_iter=50, tol=1e-2, beta = 0.9, logger=None)
+            x_eq = anderson(compute_multi_step, x, args, m=3, lam=1e-3, max_iter=15, tol=1e-2, beta = 0.9, logger=None)
             if logger is not None:
                 logger({"generated images": [wandb.Image(x_eq[i].view((3, 32, 32))) for i in list(range(0, T, T//10)) + [-5, -4, -3, -2, -1]]})
         
