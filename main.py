@@ -10,9 +10,6 @@ import numpy as np
 import torch.utils.tensorboard as tb
 
 from runners.diffusion import Diffusion
-#from runners.diffusion_parallel import Diffusion
-from runners.diffusion_geometric import GeometricDiffusion
-
 torch.set_printoptions(sci_mode=False)
 
 def parse_args_and_config():
@@ -90,7 +87,7 @@ def parse_args_and_config():
     parser.add_argument(
         "--model",
         type=str,
-        default="GeometricDiffusion",
+        default="Diffusion",
         help="model to use to train",
     )
     parser.add_argument(
@@ -110,22 +107,24 @@ def parse_args_and_config():
         default=1,
         help="Value of regularization parameter on ||X_pred - x^**||",
     )
+    #### IGNORE
     parser.add_argument(
         "--lambda2",
         type=float,
-        default=1e-3,
+        default=0,
         help="Value of regularization parameter on x_T",
     )
+    #### IGNORE
     parser.add_argument(
         "--lambda3",
         type=float,
-        default=1e-2,
+        default=0,
         help="Value of regularization parameter for fp",
     )
     parser.add_argument(
         "--tau",
         type=float,
-        default=0.5,
+        default=0.1,
         help="Value of damping parameter in anderson",
     )
     parser.add_argument(
