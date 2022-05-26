@@ -1,69 +1,40 @@
-# Denoising Diffusion Implicit Models (DDIM)
+# Deep Equilibrium Approaches to Diffusion Models
 
-[Jiaming Song](http://tsong.me), Chenlin Meng and [Stefano Ermon](http://cs.stanford.edu/~ermon), Stanford
-
-Implements sampling from an implicit model that is trained with the same procedure as [Denoising Diffusion Probabilistic Model](https://hojonathanho.github.io/diffusion/), but costs much less time and compute if you want to sample from it (click image below for a video demo):
-
-<a href="http://www.youtube.com/watch?v=WCKzxoSduJQ" target="_blank">![](http://img.youtube.com/vi/WCKzxoSduJQ/0.jpg)</a>
-
+This codebase has been adapted largely from the repository from Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note, we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
 
 ## Running the Experiments
-The code has been tested on PyTorch 1.6.
+The code has been tested on PyTorch 1.11.
 
-### Train a model
-Training is exactly the same as DDPM with the following:
-```
-python main.py --config {DATASET}.yml --exp {PROJECT_PATH} --doc {MODEL_NAME} --ni
-```
+### Sampling
 
-### Sampling from the model
+#### Sampling for FID evaluation
 
-#### Sampling from the generalized model for FID evaluation
+General command to sample with a DEQ or DDIM is:
 ```
-python main.py --config {DATASET}.yml --exp {PROJECT_PATH} --doc {MODEL_NAME} --sample --fid --timesteps {STEPS} --eta {ETA} --ni
+python main.py --config {DATASET}.yml --model Diffusion --exp {PROJECT_PATH} --image_folder {IMG_FOLDER} --doc {DOCUMENTATIOIN_FOLDER} --sample --fid --timesteps 1000 --eta 0 --ni --method {METHOD} --use_pretrained
 ```
 where 
-- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM).
+- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
 - `STEPS` controls how many timesteps used in the process.
 - `MODEL_NAME` finds the pre-trained checkpoint according to its inferred path.
+- `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
 
-If you want to use the DDPM pretrained model:
+Please check [generate_deq_convergence.sh](scripts/generate_deq_convergence.sh) for sampling commands for all the datasets.
+
+Example command for sampling with DEQ from CIFAR10
 ```
-python main.py --config {DATASET}.yml --exp {PROJECT_PATH} --use_pretrained --sample --fid --timesteps {STEPS} --eta {ETA} --ni
+python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder samples-cifar10-and-t1000-long-new --doc cifar10 --sample --fid --timesteps 1000 --eta 0 --ni --method anderson --use_pretrained
 ```
-the `--use_pretrained` option will automatically load the model according to the dataset.
+The `--use_pretrained` option will automatically load the model according to the dataset for CIFAR10, LSUN Bedrooms and Churches.
 
-We provide a CelebA 64x64 model [here](https://drive.google.com/file/d/1R_H-fJYXSH79wfSKs9D-fuKQVan5L-GR/view?usp=sharing), and use the DDPM version for CIFAR10 and LSUN.
-
-If you want to use the version with the larger variance in DDPM: use the `--sample_type ddpm_noisy` option.
-
-#### Sampling from the model for image inpainting 
-Use `--interpolation` option instead of `--fid`.
-
-#### Sampling from the sequence of images that lead to the sample
-Use `--sequence` option instead.
-
-The above two cases contain some hard-coded lines specific to producing the image, so modify them according to your needs.
-
-
-## References and Acknowledgements
+### Training DEQ for Model Inversion
 ```
-@article{song2020denoising,
-  title={Denoising Diffusion Implicit Models},
-  author={Song, Jiaming and Meng, Chenlin and Ermon, Stefano},
-  journal={arXiv:2010.02502},
-  year={2020},
-  month={October},
-  abbr={Preprint},
-  url={https://arxiv.org/abs/2010.02502}
-}
+ python main.py --config {DATASET}_ls_opt.yml --model Diffusion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
 ```
-
-
-This implementation is based on / inspired by:
-
-- [https://github.com/hojonathanho/diffusion](https://github.com/hojonathanho/diffusion) (the DDPM TensorFlow repo), 
-- [https://github.com/pesser/pytorch_diffusion](https://github.com/pesser/pytorch_diffusion) (PyTorch helper that loads the DDPM model), and
-- [https://github.com/ermongroup/ncsnv2](https://github.com/ermongroup/ncsnv2) (code structure).
-=======
-# ddim-sampling
+where
+- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
+- `STEPS` controls how many timesteps used in the process.
+- `MODEL_NAME` finds the pre-trained checkpoint according to its inferred path.
+- `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
+- `PG_STEPS` is the number of iterations while computing phantom gradients. We set this value to 1.
+- `DAMPING_FACTOR` is the value of damping used in phantom gradients. We set this to 0.1.

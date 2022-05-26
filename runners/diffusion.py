@@ -296,7 +296,6 @@ class Diffusion(object):
                             group=f"{config.data.dataset}-{config.data.category}-DDIM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
                                 f"l1-{self.args.lambda1}-l2-{self.args.lambda2}-l3-{self.args.lambda3}-lr-{config.optim.lr}-" + 
                                 f"tau-{self.args.tau}-pg_steps-{self.args.pg_steps}-devices-{torch.cuda.device_count()}",
-                                #f"tau-{self.args.tau}-pg_steps-{self.args.pg_steps}-devices-{torch.cuda.device_count()}-epochs-{config.training.n_epochs}"
                             settings=wandb.Settings(start_method="fork"),
                             config=args
                             )

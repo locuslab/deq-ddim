@@ -32,11 +32,6 @@ def compute_multi_step(xt, model, all_xT, et_coeff, et_prevsum_coeff, T, t, xT, 
         et_prevsum[T:] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
 
     xt_next = all_xT + et_prevsum_coeff * et_prevsum
-    # log_dict = {
-    #     "xt": torch.norm(xt.reshape(image_dim[0], -1), -1).mean(),
-    #     "xt_next": torch.norm(xt_next.reshape(image_dim[0], -1), -1).mean(),
-    #     "prediction et": torch.norm(et.reshape(image_dim[0], -1), -1).mean(),
-    # }
     xt_all = torch.zeros_like(xt)
     xt_all[kwargs['xT_idx']] = xT
     xt_all[kwargs['prev_idx']] = xt_next
@@ -94,15 +89,6 @@ def simple_anderson(f, x0, m=3, lam=1e-3, threshold=30, eps=1e-3, stop_mode='rel
                 trace_dict[stop_mode].append(lowest_dict[stop_mode])
                 trace_dict[alternative_mode].append(lowest_dict[alternative_mode])
             break
-            
-    # out = {"result": lowest_xest,
-    #        "lowest": lowest_dict[stop_mode],
-    #        "nstep": lowest_step_dict[stop_mode],
-    #        "prot_break": False,
-    #        "abs_trace": trace_dict['abs'],
-    #        "rel_trace": trace_dict['rel'],
-    #        "eps": eps,
-    #        "threshold": threshold}
     X = F = None
     return lowest_xest
 
@@ -150,7 +136,6 @@ def anderson(f, x0, args, m=3, lam=1e-3, max_iter=50, tol=1e-3, beta = 1.0, logg
                 print("Breaking out early at {}".format(k))
                 break
 
-            #print("{}/{} Residual {} tol {} ".format(k, max_iter, res[-1], tol))
             if logger is not None:
                 log_metrics["residual"] = residual
                 log_metrics["normalized_residual"] = normalized_residual
@@ -205,7 +190,7 @@ class DEQLatentSpaceOpt(object):
             anderson_params = {
                 "m": 3,
                 "lambda": 1e-3,
-                "max_anderson_iters": 30,
+                "max_anderson_iters": 15,
                 "tol": 0.01,
                 "beta": 1
             }
@@ -236,19 +221,6 @@ class DEQLatentSpaceOpt(object):
         for _ in range(pg_steps):
             x_eq = (1 - tau) * x_eq + tau * compute_multi_step(xt=x_eq, **args)
         return x_eq
-
-        # x_eq.requires_grad_()
-        # new_z1 = compute_multi_step(x_eq.view(x.shape), **args)
-        
-        # def backward_hook(grad):
-        #     if self.hook is not None:
-        #         self.hook.remove()
-        #         torch.cuda.synchronize()
-        #     x_back = simple_anderson(lambda y: autograd.grad(new_z1, x_eq, y, retain_graph=True)[0] + grad, torch.zeros_like(grad), 
-        #                 m=3, lam=1e-3, max_iter=50, tol=1e-2, beta = 0.8, logger=None)
-        #     return x_back
-        # self.hook = new_z1.register_hook(backward_hook)
-        # return new_z1
 
 def get_additional_lt_opt_args(all_xt, seq, betas, batch_size):
     from functions.ddim_anderson import compute_alpha
