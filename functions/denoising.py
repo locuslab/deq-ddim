@@ -47,6 +47,31 @@ def generalized_steps(x, seq, model, b, logger=None, print_logs=False, **kwargs)
         xs.append(xt_next)
     return xs, x0_preds
 
+def forward_steps(x, seq, model, b, logger=None, print_logs=False, **kwargs):
+    bsz = x.size(0)
+    prev_seq = list(seq[:-1])
+    seq_next = list(seq[1:])
+    x0_preds = []
+    xs = [x]
+    alpha = compute_cumprod_alpha(b)
+
+    for i, j in zip(prev_seq, seq_next):
+        t = (torch.ones(bsz) * i).to(x.device)
+        next_t = (torch.ones(bsz) * j).to(x.device)
+        
+        at = get_alpha_at_index(alpha, t.long())
+        at_next = get_alpha_at_index(alpha, next_t.long())
+        
+        xt = xs[-1].to('cuda')
+        et = model(xt, t)
+        
+        coeff_et = (1/at_next - 1).sqrt() - (1/at - 1).sqrt()
+        coeff_xt = (1/at).sqrt() - (1/at_next).sqrt()
+
+        xt_next =xt + at_next.sqrt() * (coeff_xt * xt + coeff_et * et)
+        xs.append(xt_next)
+    return xs, x0_preds
+
 def generalized_steps_fp_ddim(x, seq, model, b, logger=None, print_logs=False, **kwargs):
     with torch.no_grad():
         B = x.size(0)
@@ -97,13 +122,14 @@ def generalized_steps_fp_ddim(x, seq, model, b, logger=None, print_logs=False, *
 
     return xs, x0_preds
 
-def ddpm_steps(x, seq, model, b, **kwargs):
+def ddpm_steps(x, seq, model, b, logger=None, **kwargs):
     with torch.no_grad():
         n = x.size(0)
         seq_next = [-1] + list(seq[:-1])
         xs = [x]
         x0_preds = []
         betas = b
+        image_dim = x.shape
         for i, j in zip(reversed(seq), reversed(seq_next)):
             t = (torch.ones(n) * i).to(x.device)
             next_t = (torch.ones(n) * j).to(x.device)
@@ -129,4 +155,10 @@ def ddpm_steps(x, seq, model, b, **kwargs):
             logvar = beta_t.log()
             sample = mean + mask * torch.exp(0.5 * logvar) * noise
             xs.append(sample.to('cpu'))
+
+            log_dict = {}
+            if logger is not None:
+                if i % 50 == 0 or i < 50:
+                    log_dict["samples"] = [wandb.Image(x[i]) for i in range(0, 1000, 100)]
+                logger(log_dict)
     return xs, x0_preds

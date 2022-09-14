@@ -44,7 +44,7 @@ sampling:
 optim:
     weight_decay: 0.000
     optimizer: "Adam"
-    lr: 0.001
+    lr: 0.01
     beta1: 0.9
     amsgrad: false
     eps: 0.00000001

@@ -144,6 +144,11 @@ def parse_args_and_config():
         help="If set to true, no augmenttion will be applied to dataset",
     )
     parser.add_argument(
+        "--recons",
+        action="store_true",
+        help="If set to true, use simple reconstruction to identity source noise",
+    )
+    parser.add_argument(
         "--m",
         type=int,
         default=5,
@@ -185,7 +190,7 @@ def parse_args_and_config():
     tb_path = os.path.join(args.exp, "tensorboard", args.doc)
 
     if not args.test and not args.sample:
-        if not args.resume_training and not args.ls_opt:
+        if not args.resume_training and not args.ls_opt and not args.recons:
             if os.path.exists(args.log_path):
                 overwrite = False
                 if args.ni:
@@ -204,7 +209,7 @@ def parse_args_and_config():
                 else:
                     print("Folder exists. Program halted.")
                     sys.exit(0)
-        elif not args.ls_opt:
+        elif not args.ls_opt and not args.recons:
             os.makedirs(args.log_path)
 
         with open(os.path.join(args.log_path, "config.yml"), "w") as f:
@@ -309,6 +314,9 @@ def main():
         elif args.ls_opt:
             print("Performing latent space optimization!!!")
             runner.ls_opt()
+        elif args.recons:
+            print("Performing simple reconstruction!!!")
+            runner.reconstruction()
         else:
             runner.train()
     except Exception:

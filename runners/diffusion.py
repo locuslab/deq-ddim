@@ -2,7 +2,7 @@ import os
 import logging
 import time
 import glob
-from functions import latent_space_opt_anderson
+from functions import latent_space_opt_anderson, latent_space_opt_ddpm
 
 import numpy as np
 import tqdm
@@ -18,7 +18,7 @@ from functions import get_optimizer
 from functions.losses import loss_registry
 from datasets import get_dataset, data_transform, inverse_data_transform
 from functions.ckpt_util import get_ckpt_path
-from functions.denoising import generalized_steps
+from functions.denoising import forward_steps, generalized_steps
 import time 
 
 import torchvision.utils as tvu
@@ -209,6 +209,96 @@ class Diffusion(object):
 
                 data_start = time.time()
     
+    def reconstruction(self):
+        args, config = self.args, self.config
+
+        if 'modified' in self.config.model.type:
+            model = ConditionedDiffusionModel(self.config)
+        else:
+            model = Model(self.config)
+
+        if not self.args.use_pretrained:
+            if getattr(self.config.sampling, "ckpt_id", None) is None:
+                states = torch.load(
+                    os.path.join(self.args.log_path, "ckpt.pth"),
+                    map_location=self.config.device,
+                )
+            else:
+                states = torch.load(
+                    os.path.join(
+                        self.args.log_path, f"ckpt_{self.config.sampling.ckpt_id}.pth"
+                    ),
+                    map_location=self.config.device,
+                )
+            model = torch.nn.DataParallel(model)
+            model.load_state_dict(states[0], strict=True)
+            model.cuda()
+
+            if self.config.model.ema:
+                ema_helper = EMAHelper(mu=self.config.model.ema_rate)
+                ema_helper.register(model)
+                ema_helper.load_state_dict(states[-1])
+                ema_helper.ema(model)
+            else:
+                ema_helper = None
+        else:
+            # This used the pretrained DDPM model, see https://github.com/pesser/pytorch_diffusion
+            if self.config.data.dataset == "CIFAR10":
+                name = "cifar10"
+            elif self.config.data.dataset == "LSUN":
+                name = f"lsun_{self.config.data.category}"
+            else:
+                raise ValueError
+            ckpt = get_ckpt_path(f"ema_{name}")
+            print("Loading checkpoint {}".format(ckpt))
+            model.load_state_dict(torch.load(ckpt, map_location=self.device))
+            model.to(self.device)
+            model = torch.nn.DataParallel(model)
+
+        # First, I need to get my data!!!
+        dataset, _ = get_dataset(args, config)
+        B = 1
+        C, H, W = config.data.channels, config.data.image_size, config.data.image_size
+        
+        seq = self.get_timestep_sequence()
+        from functions.denoising import forward_steps
+        model.eval()
+        for _ in range(self.config.ls_opt.num_samples):
+            torch.manual_seed(args.seed)
+            np.random.seed(args.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(args.seed)
+
+            if args.use_wandb:
+                run = wandb.init(project="latent-space-opt-final", reinit=True, name=f"trial-{args.seed}",
+                            group=f"{config.data.dataset}-{config.data.category}-DDIM-recons-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
+                                f"-devices-{torch.cuda.device_count()}",
+                            settings=wandb.Settings(start_method="fork"),
+                            config=args
+                            )
+            img_idx = np.random.randint(low=0, high=len(dataset))
+            x_init, _ = dataset[img_idx]
+            x_target = x_init.view(1, C, H, W).float().cuda()
+            x_target = data_transform(self.config, x_target)
+
+            with torch.no_grad():
+                all_x, _ = forward_steps(x_target, seq, model, self.betas)
+                latent_src = all_x[-1]
+                generated_image = self.sample_image(latent_src.view((B, C, H, W)), model, method="generalized")
+                loss = (generated_image - x_target).square().sum(dim=(1, 2, 3)).mean(dim=0)
+                generated_image = inverse_data_transform(config, generated_image)
+
+                if args.use_wandb:
+                    logged_images = [
+                        wandb.Image(x_target.detach().squeeze().view((C, H, W))),
+                        wandb.Image(latent_src.detach().squeeze().view((C, H, W))),
+                        wandb.Image(generated_image.detach().squeeze().view((C, H, W))),
+                    ]
+                    wandb.log({
+                            "all_images": logged_images,
+                            "loss": loss
+                            })
+
     # latent space optimization
     def ls_opt(self):
 
@@ -287,14 +377,21 @@ class Diffusion(object):
             start_epoch = 0
 
             if args.use_wandb:
+                # run = wandb.init(project="latent-space-opt-final", reinit=True, name=f"trial-{args.seed}",
+                #             group=f"{config.data.dataset}-{config.data.category}-DDIM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
+                #                 f"l1-{self.args.lambda1}-l2-{self.args.lambda2}-l3-{self.args.lambda3}-lr-{config.optim.lr}-" + 
+                #                 f"tau-{self.args.tau}-pg_steps-{self.args.pg_steps}-devices-{torch.cuda.device_count()}",
+                #             settings=wandb.Settings(start_method="fork"),
+                #             config=args
+                #             )
                 run = wandb.init(project="latent-space-opt-final", reinit=True, name=f"trial-{args.seed}",
-                            group=f"{config.data.dataset}-{config.data.category}-DDIM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
+                            group=f"{config.data.dataset}-{config.data.category}-DDPM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
                                 f"l1-{self.args.lambda1}-l2-{self.args.lambda2}-l3-{self.args.lambda3}-lr-{config.optim.lr}-" + 
-                                f"tau-{self.args.tau}-pg_steps-{self.args.pg_steps}-devices-{torch.cuda.device_count()}",
+                                 f"-devices-2",
+                                #f"-devices-{torch.cuda.device_count()}",
                             settings=wandb.Settings(start_method="fork"),
                             config=args
                             )
-
             if self.config.ls_opt.in_distr:
                 with torch.no_grad():
                     x_target = torch.randn(
@@ -320,8 +417,28 @@ class Diffusion(object):
                     config.data.image_size,
                     device=self.device # This ensures that this gradient descent updates can be performed on this  
                 )
+                # Smart initialization for faster convergence
+                with torch.no_grad():
+                    all_x, _ = forward_steps(x_target, seq, model, self.betas)
+                    x = all_x[-1].detach().clone()
+
+                # This ensures that this gradient descent updates can be performed on this  
                 all_xt = torch.repeat_interleave(x, self.args.timesteps+1, dim=0).to(x.device).requires_grad_() 
+                
                 additional_args = latent_space_opt_anderson.get_additional_lt_opt_args(all_xt, seq, betas=self.betas, batch_size=x.size(0))
+                if self.config.ls_opt.method == 'ddpm':
+                    additional_args['eta'] = self.args.eta
+                    if self.args.eta == 0:
+                        raise ValueError("DDPM mode but eta is 0!!!")
+                    all_noiset = torch.randn(
+                        self.args.timesteps * B,
+                        config.data.channels,
+                        config.data.image_size,
+                        config.data.image_size,
+                        device=self.device 
+                    ).to(x.device)
+                    additional_args['all_noiset'] = all_noiset
+
                 anderson_config_params = {
                     "m": args.m,
                     "max_iters": args.max_anderson_iters,
@@ -335,7 +452,13 @@ class Diffusion(object):
                 min_l2_dist = float('inf')
 
                 from functions.latent_space_opt_anderson import DEQLatentSpaceOpt
-                deq_ls_opt = DEQLatentSpaceOpt()
+                from functions.latent_space_opt_ddpm import DEQDDPMLatentSpaceOpt
+
+                if self.config.ls_opt.method == 'ddpm':
+                    print("Performing optimization on DDPM!!!")
+                    deq_ls_opt = DEQDDPMLatentSpaceOpt()
+                else:
+                    deq_ls_opt = DEQLatentSpaceOpt()
 
                 start = torch.cuda.Event(enable_timing=True)
                 end = torch.cuda.Event(enable_timing=True)
@@ -343,7 +466,19 @@ class Diffusion(object):
                 for epoch in range(start_epoch, config.training.n_epochs):
                     optimizer.zero_grad()
 
-                    xt_pred = deq_ls_opt.find_source_noise_deq(all_xt, model, additional_args, anderson_params=anderson_config_params, tau=args.tau, pg_steps=args.pg_steps, logger=None)
+                    xt_pred = deq_ls_opt.find_source_noise_deq(all_xt, 
+                                                model, 
+                                                additional_args, 
+                                                anderson_params=anderson_config_params, 
+                                                tau=args.tau, 
+                                                pg_steps=args.pg_steps, 
+                                                logger=None)
+                    
+                    # xt_pred = deq_ls_opt.find_source_noise_deq_ift(all_xt, 
+                    #                             model, 
+                    #                             additional_args, 
+                    #                             anderson_params=anderson_config_params, 
+                    #                             logger=None)
 
                     loss_target = (xt_pred[-1] - x_target).square().sum(dim=(1, 2, 3)).mean(dim=0)
                     loss_reg = all_xt[0].detach().square().sum()
@@ -356,14 +491,49 @@ class Diffusion(object):
                     if loss < min_loss:
                         print("Min loss encountered!")
                         min_loss = loss
-                        best_img_src = all_xt[0]
+                        best_img_src = all_xt[0].detach().clone()
                         min_l2_dist = loss_target
                     
                     log_image = loss < eps
-                    #if args.use_wandb and (epoch % config.training.snapshot_freq == 0 or epoch == 0 or epoch == 1 or epoch == config.training.n_epochs-1):
-                    if args.use_wandb and ((epoch == 0 or epoch == config.training.n_epochs-1) or log_image):
+                    if args.use_wandb and (epoch % config.training.snapshot_freq == 0 or epoch == 0 or epoch == 1 or epoch == config.training.n_epochs-1) or log_image:
+                    #if args.use_wandb and ((epoch == 0 or epoch == config.training.n_epochs-1) or log_image):
                         with torch.no_grad():
-                            generated_image = self.sample_image(best_img_src.view((B, C, H, W)), model, method="generalized")
+                            
+                            best_img_src = best_img_src.view(B, C, H, W)
+                            cur_img_latent = torch.repeat_interleave(best_img_src, self.args.timesteps, dim=0).to(x.device)
+                            if self.config.ls_opt.method == 'ddpm':
+
+                                bsz, ch, h0, w0 = cur_img_latent.shape
+                                m = self.args.m
+                                X = torch.zeros(bsz, m, ch * h0 * w0, dtype=all_xt.dtype, device=all_xt.device)
+                                F = torch.zeros(bsz, m, ch * h0 * w0, dtype=all_xt.dtype, device=all_xt.device)
+                                H_and = torch.zeros(bsz, m+1, m+1, dtype=all_xt.dtype, device=all_xt.device)
+                                y = torch.zeros(bsz, m+1, 1, dtype=all_xt.dtype, device=all_xt.device)
+
+                                sampling_args = {
+                                    'all_xt': cur_img_latent,
+                                    'all_noiset': all_noiset,
+                                    'X': X,
+                                    'F': F,
+                                    'H': H_and,
+                                    'y': y,
+                                    'bsz': x.size(0),
+                                    'm': m,
+                                }
+                                sampling_additional_args = self.get_additional_anderson_args_ddpm(cur_img_latent, 
+                                                        xT=best_img_src, 
+                                                        all_noiset=all_noiset, 
+                                                        betas=self.betas, 
+                                                        batch_size=x.size(0), 
+                                                        eta=self.args.eta)
+
+                                generated_image = self.sample_image(x=cur_img_latent, model=model, 
+                                                        args=sampling_args,
+                                                        additional_args=sampling_additional_args,
+                                                        method="ddpm")
+                            else:
+                                generated_image = self.sample_image(best_img_src.view((B, C, H, W)), model, method="generalized")
+                            
                             generated_image = inverse_data_transform(config, generated_image)
 
                             logged_images = [
@@ -396,7 +566,7 @@ class Diffusion(object):
 
                 end.record()
                 # Waits for everything to finish running
-                torch.cuda.synchronize()
+                # torch.cuda.synchronize()
                 total_time = start.elapsed_time(end)
 
                 if args.use_wandb:
@@ -632,6 +802,63 @@ class Diffusion(object):
         }
         return additional_args
 
+    def get_additional_anderson_args_ddpm(self, all_xt, xT, all_noiset, betas, batch_size, **kwargs):
+        from functions.ddim_anderson import compute_alpha
+        seq = self.get_timestep_sequence()
+        cur_seq = list(seq)
+        seq_next = [-1] + list(seq[:-1])
+
+        gather_idx = [idx for idx in range(len(cur_seq) - 1, len(all_xt), len(cur_seq))]
+        xT_idx = [idx for idx in range(0, len(all_xt), len(cur_seq))]
+        next_idx = [idx for idx in range(len(all_xt)) if idx not in range(len(cur_seq)-1, len(all_xt), len(cur_seq))]
+        prev_idx = [idx + 1 for idx in next_idx]
+
+        plot_timesteps = []
+        for batch_idx in range(batch_size):
+            plot_timesteps += [n + batch_idx * len(cur_seq) for n in range(0, len(seq), len(seq)//10)] + [(batch_idx + 1) * len(cur_seq) - n for n in range(5, 0, -1)] 
+        
+        T = len(cur_seq)
+        t = torch.tensor(cur_seq[::-1]).repeat(batch_size).to(all_xt.device)
+        next_t = torch.tensor(seq_next[::-1]).repeat(batch_size).to(all_xt.device)
+
+        at = compute_alpha(betas, t.long())
+        at_next = compute_alpha(betas, next_t.long())
+
+        alpha_ratio = (at_next/at[0]).sqrt() 
+        all_xT = alpha_ratio * torch.repeat_interleave(xT, T, dim=0).to(all_xt.device)
+
+        # if kwargs.get("eta", 1) == 0:
+        #     raise ValueError("Running in DDPM mode but eta is 0")
+
+        sigma_t = kwargs.get("eta", 1) * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt()
+
+        ### This is c1(t) in the equations
+        et_coeff2 = (1 - at_next - sigma_t**2).sqrt() - (((1 - at)*at_next)/at).sqrt()
+
+        noise_t = (1 / at_next.sqrt()) * sigma_t * all_noiset
+
+
+        et_coeff = (1 / at_next.sqrt()) * et_coeff2
+
+        et_prevsum_coeff = at_next.sqrt()
+        
+        additional_args = {
+            "all_xT": all_xT, 
+            "et_coeff": et_coeff,
+            "et_prevsum_coeff": et_prevsum_coeff, 
+            "T" : T, 
+            "t" : t,
+            "bz": batch_size,
+            "plot_timesteps": plot_timesteps,
+            "gather_idx": gather_idx,
+            "xT_idx": xT_idx,
+            "prev_idx": prev_idx,
+            "next_idx": next_idx,
+            "xT": xT,
+            "noise_t": noise_t
+        }
+        return additional_args
+
     def reset_seed(self, seed):
         # set random seed
         torch.manual_seed(seed)
@@ -643,7 +870,7 @@ class Diffusion(object):
         config = self.config
         img_id = len(glob.glob(f"{self.args.image_folder}/*"))
         print(f"starting from image {img_id}")
-        total_n_samples = 500
+        total_n_samples = 50000
         n_rounds = (total_n_samples - img_id) // config.sampling.batch_size
         total_time = 0
         sample_id = img_id
@@ -652,30 +879,45 @@ class Diffusion(object):
                 range(n_rounds), desc="Generating image samples for FID evaluation."
             ):
                 n = config.sampling.batch_size
-                x = torch.zeros(
-                    n,
-                    config.data.channels,
-                    config.data.image_size,
-                    config.data.image_size,
-                    device=self.device,
-                )
-                for i in range(n):
-                    self.reset_seed(sample_id)
-                    x[i] = torch.randn(
-                        1,
+                # x = torch.zeros(
+                #     n,
+                #     config.data.channels,
+                #     config.data.image_size,
+                #     config.data.image_size,
+                #     device=self.device,
+                # )
+                # for i in range(n):
+                #     self.reset_seed(sample_id)
+                #     x[i] = torch.randn(
+                #         1,
+                #         config.data.channels,
+                #         config.data.image_size,
+                #         config.data.image_size,
+                #         device=self.device,
+                #     )
+                #     sample_id += 1
+
+                x = torch.randn(
+                        n,
                         config.data.channels,
                         config.data.image_size,
                         config.data.image_size,
                         device=self.device,
                     )
-                    sample_id += 1
-
-
-                start = torch.cuda.Event(enable_timing=True)
-                end = torch.cuda.Event(enable_timing=True)
-                start.record()
+                # start = torch.cuda.Event(enable_timing=True)
+                # end = torch.cuda.Event(enable_timing=True)
+                # start.record()
 
                 if method == 'anderson':
+                    #### NOTE: This was just a sanity check to verify that zero init works as well #####
+                    # all_xt = torch.zeros((n * self.args.timesteps, 
+                    #                 config.data.channels, 
+                    #                 config.data.image_size, 
+                    #                 config.data.image_size)).to(x.device)
+
+                    # idx = torch.tensor([idx for idx in range(0, n*self.args.timesteps, self.args.timesteps)]).long().to(x.device)
+                    # all_xt[idx] = x
+
                     all_xt = torch.repeat_interleave(x, self.args.timesteps, dim=0).to(x.device)
                     bsz, ch, h0, w0 = all_xt.shape
                     m = self.args.m
@@ -695,15 +937,39 @@ class Diffusion(object):
                     }
                     additional_args = self.get_additional_anderson_args(all_xt, xT=x, betas=self.betas, batch_size=x.size(0))
                     x = self.sample_image(x, model, args=args, additional_args=additional_args, method=method)
+
+                elif method == 'ddpm':
+                    all_xt = torch.repeat_interleave(x, self.args.timesteps, dim=0).to(x.device)
+                    all_noiset = torch.randn_like(all_xt)
+
+                    bsz, ch, h0, w0 = all_xt.shape
+                    m = self.args.m
+                    X = torch.zeros(bsz, m, ch * h0 * w0, dtype=all_xt.dtype, device=all_xt.device)
+                    F = torch.zeros(bsz, m, ch * h0 * w0, dtype=all_xt.dtype, device=all_xt.device)
+                    H = torch.zeros(bsz, m+1, m+1, dtype=all_xt.dtype, device=all_xt.device)
+                    y = torch.zeros(bsz, m+1, 1, dtype=all_xt.dtype, device=all_xt.device)
+
+                    args = {
+                        'all_xt': all_xt,
+                        'all_noiset': all_noiset,
+                        'X': X,
+                        'F': F,
+                        'H': H,
+                        'y': y,
+                        'bsz': x.size(0),
+                        'm': m,
+                    }
+                    additional_args = self.get_additional_anderson_args_ddpm(all_xt, xT=x, all_noiset=all_noiset, betas=self.betas, batch_size=x.size(0), eta=self.args.eta)
+                    x = self.sample_image(x, model, args=args, additional_args=additional_args, method=method)
                 else:
+
                     print("Method ", method)
                     x = self.sample_image(x, model, method=method)
 
-
-                end.record()
-                # Waits for everything to finish running
-                torch.cuda.synchronize()
-                total_time += start.elapsed_time(end)
+                # end.record()
+                # # Waits for everything to finish running
+                # torch.cuda.synchronize()
+                # total_time += start.elapsed_time(end)
 
                 if round % 50 == 0 or round == n_rounds - 1:
                     print(f"Round {round+1} Total Time {total_time} Avg time {total_time/(round+1)}")
@@ -821,13 +1087,14 @@ class Diffusion(object):
         if self.args.sample_type == "generalized":
             from functions.denoising import generalized_steps
             from functions.ddim_anderson import fp_implicit_iters_anderson
+            from functions.ddpm_anderson import ddpm_implicit_iters_anderson
 
             logger=None
             if method == 'anderson':
                 use_wandb = False
                 if use_wandb:
-                    wandb.init( project="DEQ-convergence",
-                                group=f"DDIM-{self.config.data.dataset}-{self.config.data.category}-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
+                    wandb.init( project="DEQ-Efficiency-exp-rebuttal",
+                                group=f"DDIM-xt-init-{self.config.data.dataset}-{self.config.data.category}-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
                                 reinit=True,
                                 config=self.config)
                     logger = wandb.log
@@ -837,17 +1104,31 @@ class Diffusion(object):
                 if True or type(xs[0]) == dict:
                     xs = xs[0]
                     last = False
-                
+
             elif method == 'simple-seq':
                 use_wandb = False
                 seq = self.get_timestep_sequence()
                 if use_wandb:
-                    wandb.init( project="DEQ-Efficiency-exps",
+                    wandb.init( project="DEQ-Efficiency-exps-rebuttal",
                                 name=f"DDIM-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{len(seq)}",
                                 reinit=True,
                                 config=self.config)
                     logger = wandb.log
                 xs = generalized_steps(x, seq, model, self.betas, logger=logger, print_logs=False, eta=self.args.eta)
+            elif method == 'ddpm':
+                use_wandb = False
+                if use_wandb:
+                    wandb.init( project="DDPM-exp-rebuttal",
+                                group=f"DDPM-eta-{self.args.eta}-{self.config.data.dataset}-{self.config.data.category}-{self.args.method}-device{torch.cuda.device_count()}-{len(self.betas)}-{additional_args['T']}-m-{args['m']}-steps-15",
+                                reinit=True,
+                                config=self.config)
+                    logger = wandb.log
+
+                xs = ddpm_implicit_iters_anderson(x, model, self.betas, args=args, 
+                              additional_args=additional_args, logger=logger, print_logs=True)
+                if True or type(xs[0]) == dict:
+                    xs = xs[0]
+                    last = False
             else:
                 if sample_entire_seq:
                     print("Sampling whole seq!")
@@ -858,19 +1139,20 @@ class Diffusion(object):
             x = xs
             
         elif self.args.sample_type == "ddpm_noisy":
-            if self.args.skip_type == "uniform":
-                skip = self.num_timesteps // self.args.timesteps
-                seq = range(0, self.num_timesteps, skip)
-            elif self.args.skip_type == "quad":
-                seq = (
-                    np.linspace(
-                        0, np.sqrt(self.num_timesteps * 0.8), self.args.timesteps
-                    )
-                    ** 2
-                )
-                seq = [int(s) for s in list(seq)]
-            else:
-                raise NotImplementedError
+            # if self.args.skip_type == "uniform":
+            #     skip = self.num_timesteps // self.args.timesteps
+            #     seq = range(0, self.num_timesteps, skip)
+            # elif self.args.skip_type == "quad":
+            #     seq = (
+            #         np.linspace(
+            #             0, np.sqrt(self.num_timesteps * 0.8), self.args.timesteps
+            #         )
+            #         ** 2
+            #     )
+            #     seq = [int(s) for s in list(seq)]
+            # else:
+            #     raise NotImplementedError
+            seq = self.get_timestep_sequence()
             from functions.denoising import ddpm_steps
 
             x = ddpm_steps(x, seq, model, self.betas)

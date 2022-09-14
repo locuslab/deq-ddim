@@ -8,7 +8,7 @@ def compute_alpha(beta, t):
     a = (1 - beta).cumprod(dim=0).index_select(0, t + 1).view(-1, 1, 1, 1)
     return a
 
-def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, T, t, image_dim, xT, **kwargs):
+def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, noise_t, T, t, image_dim, xT, **kwargs):
     with torch.no_grad():
         xt_all = torch.zeros_like(all_xT)
         xt_all[kwargs['xT_idx']] = xT
@@ -17,7 +17,7 @@ def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, T, t, imag
         xt = xt_all.to('cuda')
 
         et = model(xt, t)
-        et_updated = et_coeff * et
+        et_updated = et_coeff * et + noise_t ### Additional DDPM noise
         et_cumsum_all = et_updated.cumsum(dim=0)
         idx = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
         prev_cumsum = et_cumsum_all[idx]
@@ -114,7 +114,7 @@ def anderson(f, x0, X, F, H, y, args, m=3, lam=1e-3, max_iter=15, tol=1e-2, beta
     x_eq = X[:,k%m].view_as(x0)[args['gather_idx']].to('cpu')
     return x_eq
 
-def fp_implicit_iters_anderson(x, model, b, args=None, additional_args=None, logger=None, print_logs=False, save_last=True, **kwargs):
+def ddpm_implicit_iters_anderson(x, model, b, args=None, additional_args=None, logger=None, print_logs=False, save_last=True, **kwargs):
     with torch.no_grad():
 
         x0_preds = []
