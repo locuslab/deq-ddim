@@ -1,12 +1,12 @@
 data:
     dataset: "LSUN"
-    category: "bedroom"
+    category: "church_outdoor"
     image_size: 256
     channels: 3
     logit_transform: false
     uniform_dequantization: false
     gaussian_dequantization: false
-    random_flip: true
+    random_flip: false
     rescaled: true
     num_workers: 32
 
@@ -31,7 +31,7 @@ diffusion:
     num_diffusion_timesteps: 1000
 
 training:
-    batch_size: 64
+    batch_size: 1
     n_epochs: 2000
     n_iters: 5000000
     snapshot_freq: 50
@@ -48,9 +48,9 @@ optim:
     beta1: 0.9
     amsgrad: false
     eps: 0.00000001
-
+  
 ls_opt:
     num_samples: 1
     in_distr: false
-    use_parallel: false
-    
+    use_parallel: true  
+    method: 'ddpm'

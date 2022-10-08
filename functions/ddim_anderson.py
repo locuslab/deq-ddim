@@ -34,7 +34,7 @@ def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, T, t, imag
     return xt_next.view(xt.shape[0], -1), log_dict
 
 @torch.no_grad()
-def anderson(f, x0, X, F, H, y, args, m=3, lam=1e-3, max_iter=15, tol=1e-2, beta = 1.0, logger=None):
+def anderson(f, x0, X, F, H, y, args, m=5, lam=1e-3, max_iter=15, tol=1e-2, beta = 1.0, logger=None):
     """ Anderson acceleration for fixed point iteration. """
     with torch.no_grad():
         bsz, ch, h0, w0 = x0.shape
@@ -116,16 +116,14 @@ def anderson(f, x0, X, F, H, y, args, m=3, lam=1e-3, max_iter=15, tol=1e-2, beta
 
 def fp_implicit_iters_anderson(x, model, b, args=None, additional_args=None, logger=None, print_logs=False, save_last=True, **kwargs):
     with torch.no_grad():
-
         x0_preds = []
         image_dim = x.shape
         
         all_xt = args['all_xt']
-
         additional_args["model"] = model
         additional_args["image_dim"] = image_dim
 
         x_final = anderson(compute_multi_step, all_xt, args['X'], args['F'], args['H'], args['y'], 
-                                 additional_args, m=args['m'], lam=1e-3, max_iter=50, tol=1e-3, beta = 1.0, logger=logger)
+                                 additional_args, m=args['m'], lam=1e-3, max_iter=15, tol=1e-3, beta = 1.0, logger=logger)
     return x_final, x0_preds
 

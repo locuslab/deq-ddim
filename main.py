@@ -130,7 +130,7 @@ def parse_args_and_config():
     parser.add_argument(
         "--pg_steps",
         type=int,
-        default=5,
+        default=1,
         help="Number of steps while computing phantom gradients",
     )
     parser.add_argument(

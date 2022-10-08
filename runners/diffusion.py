@@ -101,8 +101,6 @@ class Diffusion(object):
         )
         if self.model_var_type == "fixedlarge":
             self.logvar = betas.log()
-            # torch.cat(
-            # [posterior_variance[1:2], betas[1:]], dim=0).log()
         elif self.model_var_type == "fixedsmall":
             self.logvar = posterior_variance.clamp(min=1e-20).log()
 
@@ -377,13 +375,6 @@ class Diffusion(object):
             start_epoch = 0
 
             if args.use_wandb:
-                # run = wandb.init(project="latent-space-opt-final", reinit=True, name=f"trial-{args.seed}",
-                #             group=f"{config.data.dataset}-{config.data.category}-DDIM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
-                #                 f"l1-{self.args.lambda1}-l2-{self.args.lambda2}-l3-{self.args.lambda3}-lr-{config.optim.lr}-" + 
-                #                 f"tau-{self.args.tau}-pg_steps-{self.args.pg_steps}-devices-{torch.cuda.device_count()}",
-                #             settings=wandb.Settings(start_method="fork"),
-                #             config=args
-                #             )
                 run = wandb.init(project="latent-space-opt-final", reinit=True, name=f"trial-{args.seed}",
                             group=f"{config.data.dataset}-{config.data.category}-DDPM-indistr-{self.config.ls_opt.in_distr}-T{args.timesteps}-parallel-{self.config.ls_opt.use_parallel}-" +
                                 f"l1-{self.args.lambda1}-l2-{self.args.lambda2}-l3-{self.args.lambda3}-lr-{config.optim.lr}-" + 
@@ -399,7 +390,7 @@ class Diffusion(object):
                         config.data.channels,
                         config.data.image_size,
                         config.data.image_size,
-                        device=self.device # This ensures that this gradient descent updates can be performed on this
+                        device=self.device
                     )
                     x_target = self.sample_image(x_target.detach().view((B, C, H, W)), model, method="generalized")
 
@@ -415,7 +406,7 @@ class Diffusion(object):
                     config.data.channels,
                     config.data.image_size,
                     config.data.image_size,
-                    device=self.device # This ensures that this gradient descent updates can be performed on this  
+                    device=self.device 
                 )
                 # Smart initialization for faster convergence
                 with torch.no_grad():
@@ -904,9 +895,9 @@ class Diffusion(object):
                         config.data.image_size,
                         device=self.device,
                     )
-                # start = torch.cuda.Event(enable_timing=True)
-                # end = torch.cuda.Event(enable_timing=True)
-                # start.record()
+                start = torch.cuda.Event(enable_timing=True)
+                end = torch.cuda.Event(enable_timing=True)
+                start.record()
 
                 if method == 'anderson':
                     #### NOTE: This was just a sanity check to verify that zero init works as well #####
@@ -962,14 +953,13 @@ class Diffusion(object):
                     additional_args = self.get_additional_anderson_args_ddpm(all_xt, xT=x, all_noiset=all_noiset, betas=self.betas, batch_size=x.size(0), eta=self.args.eta)
                     x = self.sample_image(x, model, args=args, additional_args=additional_args, method=method)
                 else:
-
-                    print("Method ", method)
+                    print("Method !!!!", method)
                     x = self.sample_image(x, model, method=method)
 
-                # end.record()
-                # # Waits for everything to finish running
-                # torch.cuda.synchronize()
-                # total_time += start.elapsed_time(end)
+                end.record()
+                # Waits for everything to finish running
+                torch.cuda.synchronize()
+                total_time += start.elapsed_time(end)
 
                 if round % 50 == 0 or round == n_rounds - 1:
                     print(f"Round {round+1} Total Time {total_time} Avg time {total_time/(round+1)}")

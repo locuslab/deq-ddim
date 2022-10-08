@@ -133,3 +133,16 @@ dmypy.json
 
 wandb/
 functions/wandb/
+
+# Output folders
+cifar10-orig-exp/
+cifar10-orig-fid/
+celeba-orig-exp/
+celeba-orig/
+church-orig-exp/
+church-orig-fid/
+bedroom-orig-fid/
+lsun_bedroom_images/
+lsun_orig/
+
+src/

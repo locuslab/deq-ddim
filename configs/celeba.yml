@@ -38,7 +38,7 @@ training:
     validation_freq: 20000
 
 sampling:
-    batch_size: 64
+    batch_size: 1
     last_only: True
     #ckpt_id: 1
 
