@@ -25,7 +25,7 @@ python main.py --config bedroom.yml --model Diffusion --exp bedroom-orig-fid --i
 python main.py --config church.yml --model Diffusion --exp church-orig-fid --image_folder fid-church-t20-seq-eta-0.2 --doc church --sample --fid --timesteps 20 --eta 0.2 --ni --method simple-seq --use_pretrained
 
 ### Generate samples with DEQ-DDIM + Anderson
-
+# CelebA
 python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_folder ddim-eta-0.2-celeba-seq-t50 --doc celeba-orig-ddim --sample --fid --timesteps 50 --eta 0.2 --ni --method ddpm
 python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_folder ddim-eta-0.5-celeba-seq-t50 --doc celeba-orig-ddim --sample --fid --timesteps 50 --eta 0.5 --ni --method ddpm
 python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_folder ddim-eta-1-celeba-seq-t50 --doc celeba-orig-ddim --sample --fid --timesteps 50 --eta 1 --ni --method ddpm
@@ -34,6 +34,7 @@ python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_f
 python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_folder ddim-eta-0.5-celeba-seq-t20 --doc celeba-orig-ddim --sample --fid --timesteps 20 --eta 0.5 --ni --method ddpm
 python main.py --config celeba.yml --model Diffusion --exp celeba-orig --image_folder ddim-eta-1-celeba-seq-t20 --doc celeba-orig-ddim --sample --fid --timesteps 20 --eta 1 --ni --method ddpm
 
+# CIFAR10
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder ddim-eta-0.2-cifar10-t20 --doc cifar10 --sample --fid --timesteps 20 --eta 0.2 --ni --method ddpm --use_pretrained --skip_type quad
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder ddim-eta-0.5-cifar10-t20 --doc cifar10 --sample --fid --timesteps 20 --eta 0.5 --ni --method ddpm --use_pretrained --skip_type quad
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder ddim-eta-1-cifar10-t20 --doc cifar10 --sample --fid --timesteps 20 --eta 1 --ni --method ddpm --use_pretrained --skip_type quad
@@ -42,5 +43,6 @@ python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --i
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder ddim-eta-0.5-cifar10-t50 --doc cifar10 --sample --fid --timesteps 50 --eta 0.5 --ni --method ddpm --use_pretrained --skip_type quad
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder ddim-eta-0.2-cifar10-t50 --doc cifar10 --sample --fid --timesteps 50 --eta 0.2 --ni --method ddpm --use_pretrained --skip_type quad
 
+#LSUN Bedroom / Church
 python main.py --config bedroom.yml --model Diffusion --exp bedroom-orig-fid --image_folder ddim-eta-0.2-bedroom-seq-t20 --doc bedroom --sample --fid --timesteps 20 --eta 0.2 --ni --method ddpm --use_pretrained
 python main.py --config church.yml --model Diffusion --exp church-orig-fid --image_folder ddim-eta-0.2-church-t20 --doc church --sample --fid --timesteps 20 --eta 0.2 --ni --method ddpm --use_pretrained

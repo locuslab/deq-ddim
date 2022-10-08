@@ -10,6 +10,8 @@ import numpy as np
 import torch.utils.tensorboard as tb
 
 from runners.diffusion import Diffusion
+from runners.diffusion_inversion import DiffusionInversion
+
 torch.set_printoptions(sci_mode=False)
 
 def parse_args_and_config():
@@ -87,8 +89,8 @@ def parse_args_and_config():
     parser.add_argument(
         "--model",
         type=str,
-        default="Diffusion",
-        help="model to use to train",
+        default="Diffusion", # Set this to DiffusionInversion if performing model inversion 
+        help="model to use to train -- Diffusion or DiffusionInversion",
     )
     parser.add_argument(
         "--method",
@@ -146,7 +148,7 @@ def parse_args_and_config():
     parser.add_argument(
         "--recons",
         action="store_true",
-        help="If set to true, use simple reconstruction to identity source noise",
+        help="If set to true, uses simple reconstruction to identity source noise i.e. no optimization is used",
     )
     parser.add_argument(
         "--m",
