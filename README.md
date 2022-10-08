@@ -25,7 +25,7 @@ General command to sample with a DEQ or DDIM is:
 python main.py --config {DATASET}.yml --model Diffusion --exp {PROJECT_PATH} --image_folder {IMG_FOLDER} --doc {DOCUMENTATIOIN_FOLDER} --sample --fid --timesteps 1000 --eta 0 --ni --method {METHOD} --use_pretrained
 ```
 where 
-- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
+- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM).
 - `STEPS` controls how many timesteps used in the process.
 - `MODEL_NAME` finds the pre-trained checkpoint according to its inferred path.
 - `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
@@ -43,7 +43,7 @@ The `--use_pretrained` option will automatically load the model according to the
  python main.py --config {DATASET}_ls_opt.yml --model DiffusionInversion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
 ```
 where
-- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
+- `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM).
 - `STEPS` controls how many timesteps used in the process.
 - `MODEL_NAME` finds the pre-trained checkpoint according to its inferred path.
 - `METHOD` Use 'anderson' for DEQ and 'simple-seq' for DDIM
