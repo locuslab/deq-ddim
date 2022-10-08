@@ -55,3 +55,4 @@ ls_opt:
     num_samples: 1
     in_distr: false
     use_parallel: false
+    method: "ddim"
