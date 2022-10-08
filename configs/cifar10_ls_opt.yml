@@ -1,5 +1,5 @@
 data:
-    dataset: "CIFAR10Pair"
+    dataset: "CIFAR10"
     category: ""
     image_size: 32
     channels: 3
@@ -33,13 +33,13 @@ diffusion:
 
 training:
     batch_size: 1
-    n_epochs: 10000
+    n_epochs: 1000
     n_iters: 5000000
     snapshot_freq: 50
     validation_freq: 2000
 
 sampling:
-    batch_size: 64
+    batch_size: 1
     last_only: True
 
 optim:

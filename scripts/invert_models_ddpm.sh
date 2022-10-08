@@ -5,7 +5,7 @@
 
 for i in $(seq 1 25)
 do
-   python main.py --config cifar10_ls_opt_ddpm.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-ddim-eta-0.5-t20-seq --doc cifar10-orig --ls_opt --timesteps 10 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --no_augmentation --tau 0.1 --pg_steps 1 --eta 1 --use_wandb
+   python main.py --config cifar10_ls_opt_ddpm.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-ddim-eta-0.5-t20-seq --doc cifar10-orig --ls_opt --timesteps 10 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --no_augmentation --tau 0.1 --pg_steps 1 --eta 1 --use_wandb --use_pretrained
 done
 
 ########### CelebA ###################

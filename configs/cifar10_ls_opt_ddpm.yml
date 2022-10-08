@@ -1,5 +1,5 @@
 data:
-    dataset: "CIFAR10Pair"
+    dataset: "CIFAR10"
     category: ""
     image_size: 32
     channels: 3

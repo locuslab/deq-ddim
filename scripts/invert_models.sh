@@ -5,12 +5,12 @@
 
 for i in $(seq 1 100)
 do
-    python main.py --config cifar10_ls_opt.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-inverse-t1000-parallel --doc cifar10-orig --ls_opt --timesteps 1000 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau 0.1 --use_wandb --no_augmentation --pg_steps 1
+    python main.py --config cifar10_ls_opt.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-inverse-t1000-parallel --doc cifar10-orig --ls_opt --timesteps 1000 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau 0.1 --use_wandb --no_augmentation --pg_steps 1 --use_pretrained
 done
 #### Baseline ########################
 for i in $(seq 1 100)
 do
-    python main.py --config cifar10_ls_opt_seq.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-inverse-t1000-seq --doc cifar10-orig --ls_opt --timesteps 1000 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --use_wandb --no_augmentation
+    python main.py --config cifar10_ls_opt_seq.yml --model DiffusionInversion --exp cifar10-orig-exp --image_folder cifar10-inverse-t1000-seq --doc cifar10-orig --ls_opt --timesteps 1000 --ni --method default --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --use_wandb --no_augmentation --use_pretrained
 done
 
 ########### CelebA ###################
