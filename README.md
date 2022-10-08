@@ -25,7 +25,7 @@ Example command for sampling with DEQ from CIFAR10
 ```
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder samples-cifar10-and-t1000-long-new --doc cifar10 --sample --fid --timesteps 1000 --eta 0 --ni --method anderson --use_pretrained
 ```
-The `--use_pretrained` option will automatically load the model according to the dataset for CIFAR10, LSUN Bedrooms and Churches.
+The `--use_pretrained` option will automatically load the model according to the dataset for CIFAR10, LSUN Bedrooms and Churches. We use DDPM models for all datasets except CelebA. Please download CelebA 64x64 pretrained model from https://github.com/ermongroup/ddim
 
 ### Training DEQ for Model Inversion
 ```
