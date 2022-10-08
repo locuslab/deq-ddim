@@ -191,7 +191,7 @@ def parse_args_and_config():
 
     tb_path = os.path.join(args.exp, "tensorboard", args.doc)
 
-    if not args.test and not args.sample:
+    if not args.test and not args.sample and not args.recons:
         if not args.resume_training and not args.ls_opt and not args.recons:
             if os.path.exists(args.log_path):
                 overwrite = False
@@ -211,8 +211,6 @@ def parse_args_and_config():
                 else:
                     print("Folder exists. Program halted.")
                     sys.exit(0)
-            elif not args.ls_opt and not args.recons:
-                os.makedirs(args.log_path)
 
             with open(os.path.join(args.log_path, "config.yml"), "w") as f:
                 yaml.dump(new_config, f, default_flow_style=False)
@@ -224,6 +222,8 @@ def parse_args_and_config():
             raise ValueError("level {} not supported".format(args.verbose))
 
         handler1 = logging.StreamHandler()
+        if not os.path.exists(args.log_path):
+            os.makedirs(args.log_path)
         handler2 = logging.FileHandler(os.path.join(args.log_path, "stdout.txt"))
         formatter = logging.Formatter(
             "%(levelname)s - %(filename)s - %(asctime)s - %(message)s"
@@ -249,7 +249,7 @@ def parse_args_and_config():
         logger.addHandler(handler1)
         logger.setLevel(level)
 
-        if args.sample or args.ls_opt:
+        if args.sample or args.ls_opt or args.recons:
             os.makedirs(os.path.join(args.exp, "image_samples"), exist_ok=True)
             args.image_folder = os.path.join(
                 args.exp, "image_samples", args.image_folder
