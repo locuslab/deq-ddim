@@ -1,19 +1,14 @@
 import os
-import logging
-import time
-import glob
+
 from functions import latent_space_opt_anderson, latent_space_opt_ddpm
 from runners.diffusion import Diffusion
 
 import numpy as np
 import tqdm
 import torch
-import torch.utils.data as data
 
-import PIL
 from models.diffusion import Model
 
-from models.diffusion_xT import ConditionedDiffusionModel
 from models.ema import EMAHelper
 from functions import get_optimizer
 from functions.losses import loss_registry
@@ -426,10 +421,7 @@ class DiffusionInversion(Diffusion):
     def reconstruction(self):
         args, config = self.args, self.config
 
-        if 'modified' in self.config.model.type:
-            model = ConditionedDiffusionModel(self.config)
-        else:
-            model = Model(self.config)
+        model = Model(self.config)
 
         if not self.args.use_pretrained:
             if getattr(self.config.sampling, "ckpt_id", None) is None:
