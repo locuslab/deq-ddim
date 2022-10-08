@@ -11,6 +11,7 @@ conda activate <environment_name>
 ```
 
 If you are working with CelebA 64x64 dataset, please download pretrained checkpoint from https://github.com/ermongroup/ddim
+If you are working with any of the other datasets like CIFAR10, LSUN Bedrooms or Outdoor Churches, please update the path to your cache directory [here](https://github.com/ashwinipokle/deq-ddim/blob/main/functions/ckpt_util.py#L60)
 
 ## Running the Experiments
 The code has been tested on PyTorch 1.11.
