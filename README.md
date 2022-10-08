@@ -29,7 +29,7 @@ The `--use_pretrained` option will automatically load the model according to the
 
 ### Training DEQ for Model Inversion
 ```
- python main.py --config {DATASET}_ls_opt.yml --model Diffusion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
+ python main.py --config {DATASET}_ls_opt.yml --model DiffusionInversion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
 ```
 where
 - `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
