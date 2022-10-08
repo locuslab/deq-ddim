@@ -2,6 +2,16 @@
 
 This codebase has been adapted largely from the repository of Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note: we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
 
+## Getting Started 
+
+Create conda environment and install all packages from `requirements.txt`
+```
+conda create --name <environment_name> --file requirements.txt
+conda activate <environment_name>
+```
+
+If you are working with CelebA 64x64 dataset, please download pretrained checkpoint from https://github.com/ermongroup/ddim
+
 ## Running the Experiments
 The code has been tested on PyTorch 1.11.
 
