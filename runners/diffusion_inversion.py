@@ -1,9 +1,9 @@
-from runners.diffusion import Diffusion
 import os
 import logging
 import time
 import glob
 from functions import latent_space_opt_anderson, latent_space_opt_ddpm
+from runners.diffusion import Diffusion
 
 import numpy as np
 import tqdm
@@ -26,6 +26,9 @@ import torchvision.utils as tvu
 import wandb
 
 class DiffusionInversion(Diffusion):
+    
+    def __init__(self, args, config, device=None):
+        super().__init__(args, config, device)
 
     # latent space optimization
     def ls_opt(self):
