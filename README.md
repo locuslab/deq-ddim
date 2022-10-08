@@ -25,11 +25,11 @@ Example command for sampling with DEQ from CIFAR10
 ```
 python main.py --config cifar10.yml --model Diffusion --exp cifar10-orig-fid --image_folder samples-cifar10-and-t1000-long-new --doc cifar10 --sample --fid --timesteps 1000 --eta 0 --ni --method anderson --use_pretrained
 ```
-The `--use_pretrained` option will automatically load the model according to the dataset for CIFAR10, LSUN Bedrooms and Churches.
+The `--use_pretrained` option will automatically load the model according to the dataset for CIFAR10, LSUN Bedrooms and Churches. We use DDPM models for all datasets except CelebA. Please download CelebA 64x64 pretrained model from https://github.com/ermongroup/ddim
 
 ### Training DEQ for Model Inversion
 ```
- python main.py --config {DATASET}_ls_opt.yml --model Diffusion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
+ python main.py --config {DATASET}_ls_opt.yml --model DiffusionInversion --exp {PROJECT_PATH} --image_folder {IMAGE_FOLDER} --doc {MODEL_NAME} --ls_opt --timesteps {STEPS} --ni --method {METHOD} --lambda1 1 --lambda2 0 --lambda3 0 --seed $i --tau {DAMPING_FACTOR} --use_wandb --no_augmentation --pg_steps {PG_STEPS}
 ```
 where
 - `ETA` controls the scale of the variance (0 is DDIM, and 1 is one type of DDPM). (We use 0 for all examples)
