@@ -112,10 +112,7 @@ class Diffusion(object):
             num_workers=config.data.num_workers,
         )
 
-        if 'modified' in config.model.type:
-            model = ConditionedDiffusionModel(config) 
-        else:
-            model = Model(config)
+        model = Model(config)
 
         model = model.to(self.device)
         model = torch.nn.DataParallel(model)
@@ -205,10 +202,7 @@ class Diffusion(object):
                 data_start = time.time()
 
     def sample(self):
-        if 'modified' in self.config.model.type:
-            model = ConditionedDiffusionModel(self.config)
-        else:
-            model = Model(self.config)
+        model = Model(self.config)
 
         if not self.args.use_pretrained:
             if getattr(self.config.sampling, "ckpt_id", None) is None:
