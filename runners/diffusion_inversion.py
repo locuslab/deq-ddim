@@ -322,7 +322,7 @@ class DiffusionInversion(Diffusion):
                     all_x, _ = forward_steps(x_target, seq, model, self.betas)
                     x = all_x[-1].detach().clone()
                 
-                x = x.requires_grad()
+                x = x.requires_grad_()
 
                 optimizer = get_optimizer(self.config, [x])
                 
