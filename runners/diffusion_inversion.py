@@ -137,6 +137,7 @@ class DiffusionInversion(Diffusion):
                     device=self.device 
                 )
                 # Smart initialization for faster convergence
+                # This further improves results from paper by a lot!
                 with torch.no_grad():
                     all_x, _ = forward_steps(x_target, seq, model, self.betas)
                     x = all_x[-1].detach().clone()
@@ -307,13 +308,21 @@ class DiffusionInversion(Diffusion):
                         x_target, os.path.join(args.image_folder, f"anderson-target-{img_idx}.png")
                     )
             else:
-                x = torch.randn(
-                    B,
-                    config.data.channels,
-                    config.data.image_size,
-                    config.data.image_size,
-                    device=self.device 
-                ).requires_grad_()
+                # x = torch.randn(
+                #     B,
+                #     config.data.channels,
+                #     config.data.image_size,
+                #     config.data.image_size,
+                #     device=self.device 
+                # ).requires_grad_()
+
+                # Smart initialization for faster convergence
+                # This further improves results from paper by a lot!
+                with torch.no_grad():
+                    all_x, _ = forward_steps(x_target, seq, model, self.betas)
+                    x = all_x[-1].detach().clone()
+                
+                x = x.requires_grad()
 
                 optimizer = get_optimizer(self.config, [x])
                 
