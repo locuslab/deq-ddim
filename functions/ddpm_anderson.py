@@ -8,6 +8,9 @@ def compute_alpha(beta, t):
     a = (1 - beta).cumprod(dim=0).index_select(0, t + 1).view(-1, 1, 1, 1)
     return a
 
+# This can be used for DDIM sampling too
+# Make noise_t = 0
+# TODO: Merge ddpm_anderson.py and ddim_anderson.py
 def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, noise_t, T, t, image_dim, xT, **kwargs):
     with torch.no_grad():
         xt_all = torch.zeros_like(all_xT)
@@ -19,11 +22,14 @@ def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, noise_t, T
         et = model(xt, t)
         et_updated = et_coeff * et + noise_t ### Additional DDPM noise
         et_cumsum_all = et_updated.cumsum(dim=0)
-        idx = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
-        prev_cumsum = et_cumsum_all[idx]
-
         et_prevsum = et_cumsum_all
-        et_prevsum[T:] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
+
+        all_seqs = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
+        prev_cumsum = 0
+        if len(all_seqs) > 0:
+            for idx in all_seqs:
+                prev_cumsum += torch.unsqueeze(et_cumsum_all[idx], dim=0)
+                et_prevsum[idx+1:idx+1+T] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
 
         xt_next = all_xT + et_prevsum_coeff * et_prevsum
         log_dict = {
