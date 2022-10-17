@@ -19,11 +19,15 @@ def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, T, t, imag
         et = model(xt, t)
         et_updated = et_coeff * et
         et_cumsum_all = et_updated.cumsum(dim=0)
-        idx = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
-        prev_cumsum = et_cumsum_all[idx]
-
         et_prevsum = et_cumsum_all
-        et_prevsum[T:] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
+
+        all_seqs = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
+        prev_cumsum = 0
+        if len(all_seqs) > 0:
+            for idx in all_seqs:
+                prev_cumsum += torch.unsqueeze(et_cumsum_all[idx], dim=0)
+
+                et_prevsum[idx+1:idx+1+T] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
 
         xt_next = all_xT + et_prevsum_coeff * et_prevsum
         log_dict = {
