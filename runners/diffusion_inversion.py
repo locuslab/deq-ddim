@@ -194,6 +194,8 @@ class DiffusionInversion(Diffusion):
                                                 pg_steps=args.pg_steps, 
                                                 logger=None)
                     
+                    # This computes IFT gradients instead of phantom gradients
+                    # This is quite slow and unstable!!! Do not use for peace of your mind
                     # xt_pred = deq_ls_opt.find_source_noise_deq_ift(all_xt, 
                     #                             model, 
                     #                             additional_args, 
@@ -216,7 +218,6 @@ class DiffusionInversion(Diffusion):
                     
                     log_image = loss < eps
                     if args.use_wandb and (epoch % config.training.snapshot_freq == 0 or epoch == 0 or epoch == 1 or epoch == config.training.n_epochs-1) or log_image:
-                    #if args.use_wandb and ((epoch == 0 or epoch == config.training.n_epochs-1) or log_image):
                         with torch.no_grad():
                             
                             best_img_src = best_img_src.view(B, C, H, W)
@@ -286,7 +287,7 @@ class DiffusionInversion(Diffusion):
 
                 end.record()
                 # Waits for everything to finish running
-                # torch.cuda.synchronize()
+                torch.cuda.synchronize()
                 total_time = start.elapsed_time(end)
 
                 if args.use_wandb:
@@ -308,6 +309,8 @@ class DiffusionInversion(Diffusion):
                         x_target, os.path.join(args.image_folder, f"anderson-target-{img_idx}.png")
                     )
             else:
+                # You can start with random initialization
+                # This is much difficult case but also slower
                 # x = torch.randn(
                 #     B,
                 #     config.data.channels,
@@ -352,7 +355,6 @@ class DiffusionInversion(Diffusion):
                         min_l2_dist = loss_target
                     
                     log_image = loss < eps
-                    #if args.use_wandb and (epoch % config.training.snapshot_freq == 0 or epoch == 0 or epoch == 1 or epoch == config.training.n_epochs-1):
                     if args.use_wandb and ((epoch == 0 or epoch == config.training.n_epochs-1) or log_image):
                         with torch.no_grad():
                             generated_image = self.sample_image(x.detach().view((B, C, H, W)), model, method="generalized", sample_entire_seq=False)
