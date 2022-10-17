@@ -26,7 +26,6 @@ def compute_multi_step(xt, all_xT, model, et_coeff, et_prevsum_coeff, T, t, imag
         if len(all_seqs) > 0:
             for idx in all_seqs:
                 prev_cumsum += torch.unsqueeze(et_cumsum_all[idx], dim=0)
-
                 et_prevsum[idx+1:idx+1+T] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
 
         xt_next = all_xT + et_prevsum_coeff * et_prevsum

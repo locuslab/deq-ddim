@@ -20,6 +20,7 @@ def compute_alpha(beta, t):
     a = (1 - beta).cumprod(dim=0).index_select(0, t + 1).view(-1, 1, 1, 1)
     return a
 
+# This method assumes that a single image is being inverted!!!
 def compute_multi_step_ddpm(xt, model, all_xT, et_coeff, et_prevsum_coeff, noise_t, T, t, xT, image_dim, **kwargs):
     xt_in = xt[kwargs['next_idx']]
 
@@ -29,11 +30,6 @@ def compute_multi_step_ddpm(xt, model, all_xT, et_coeff, et_prevsum_coeff, noise
     et_cumsum_all = et_updated.cumsum(dim=0)
     
     et_prevsum = et_cumsum_all
-
-    idx = torch.arange(T-1, et_cumsum_all.shape[0]-1, T)
-    if len(idx) > 0:
-        prev_cumsum = et_cumsum_all[idx]
-        et_prevsum[T:] -= torch.repeat_interleave(prev_cumsum, T,  dim=0)
 
     xt_next = all_xT + et_prevsum_coeff * et_prevsum
     xt_all = torch.zeros_like(xt)
