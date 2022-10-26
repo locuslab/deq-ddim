@@ -1,4 +1,6 @@
-# Deep Equilibrium Approaches to Diffusion Models (https://arxiv.org/abs/2210.12867)
+# Deep Equilibrium Approaches to Diffusion Models 
+
+Ashwini Pokle, Zhengyang Geng and Zico Kolter, NeurIPS 2022 [[arxiv link](https://arxiv.org/abs/2210.12867)]
 
 
 This codebase has been adapted largely from the repository of Denoising Diffusion Implicit Models (DDIM) by Song. et. al. 2020 (https://arxiv.org/abs/2010.02502) (Note: we include the original MIT license that belongs to the authors of prior work (Song. et. al.) in this codebase.)
