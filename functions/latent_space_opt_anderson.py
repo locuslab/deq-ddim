@@ -66,7 +66,8 @@ def simple_anderson(f, x0, m=3, lam=1e-3, threshold=30, eps=1e-3, stop_mode='rel
         A = H[:,:n+1,:n+1]
         # D = torch.diag(A)
         # A = A + D
-        alpha = torch.solve(y[:,:n+1], A)[0][:, 1:n+1, 0]   # (bsz x n)
+        alpha = torch.linalg.solve(H[:,:n+1,:n+1], y[:,:n+1])[:, 1:n+1, 0]
+        #alpha = torch.solve(y[:,:n+1], A)[0][:, 1:n+1, 0]   # (bsz x n)
         
         X[:,k%m] = beta * (alpha[:,None] @ F[:,:n])[:,0] + (1-beta)*(alpha[:,None] @ X[:,:n])[:,0]
         F[:,k%m] = f(X[:,k%m].reshape_as(x0)).reshape(bsz, -1)
@@ -322,7 +323,10 @@ def anderson(f, x0, args, m=3, lam=1e-3, max_iter=50, tol=1e-3, beta = 1.0, logg
             G = F[:,:n_]-X[:,:n_]
             
             H[:,1:n_+1,1:n_+1] = torch.bmm(G,G.transpose(1,2)) + lam*torch.eye(n_, dtype=x0.dtype,device=x0.device)[None]
-            alpha = torch.solve(y[:,:n_+1], H[:,:n_+1,:n_+1])[0][:, 1:n_+1, 0]   # (bsz x n)
+            
+            alpha = torch.linalg.solve(H[:,:n_+1,:n_+1], y[:,:n_+1])[:, 1:n_+1, 0]
+            #alpha = torch.solve(y[:,:n_+1], H[:,:n_+1,:n_+1])[0][:, 1:n_+1, 0]   # (bsz x n)
+
             X[:,k%m] = beta * (alpha[:,None] @ F[:,:n_])[:,0] + (1-beta)*(alpha[:,None] @ X[:,:n_])[:,0]
             F[:,k%m] = f(xt=X[:,k%m].view(x0.shape), **args).view(bsz, -1)
 

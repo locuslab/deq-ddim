@@ -74,7 +74,9 @@ def anderson(f, x0, X, F, H, y, args, m=5, lam=1e-3, max_iter=15, tol=1e-2, beta
             t3 = time.time()
             H[:,1:n_+1,1:n_+1] = torch.bmm(G,G.transpose(1,2)) + lam*torch.eye(n_, dtype=x0.dtype,device=x0.device)[None]
             t4 = time.time()
-            alpha = torch.solve(y[:,:n_+1], H[:,:n_+1,:n_+1])[0][:, 1:n_+1, 0]   # (bsz x n)
+
+            alpha = torch.linalg.solve(H[:,:n_+1,:n_+1], y[:,:n_+1])[:, 1:n_+1, 0] 
+            #alpha = torch.solve(y[:,:n_+1], H[:,:n_+1,:n_+1])[0][:, 1:n_+1, 0]   # (bsz x n)
             t5 = time.time()
             X[:,k%m] = beta * (alpha[:,None] @ F[:,:n_])[:,0] + (1-beta)*(alpha[:,None] @ X[:,:n_])[:,0]
             F[:,k%m], log_metrics = f(xt=X[:,k%m].view(x0.shape), **args)
